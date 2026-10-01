@@ -24,3 +24,10 @@ button.primary { background: var(--accent); color: #fff; }
 .chord.weak { opacity: .65; border-style: dashed; border-color: var(--warn); }
 .chord.edited { border-color: var(--accent); }
 .foot { display: flex; gap: 6px; margin-top: 10px; }
+.bars { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; max-height: 45vh; overflow: auto; }
+.bar { position: relative; display: flex; gap: 2px; background: var(--card); border-radius: 6px; padding: 14px 3px 3px; min-height: 40px; }
+.bar .chord { flex: 1; padding: 4px 2px; background: transparent; }
+.barno { position: absolute; top: 1px; left: 4px; font-size: 9px; color: var(--muted); }
+.chord.sel { box-shadow: 0 0 0 2px var(--warn); }
+.editor { margin-top: 8px; padding: 8px; background: var(--card); border-radius: 6px; display: grid; gap: 6px; }
+.editor .row { flex-wrap: wrap; }
