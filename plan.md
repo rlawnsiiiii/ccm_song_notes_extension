@@ -340,7 +340,7 @@ Not legal advice. Check these before publishing anything.
 - [~] Phase 1 — Live key and chords (baseline) (code done; needs manual Firefox check)
 - [~] Phase 2 — Test set and evaluation (tooling done; real test set to be collected)
 - [~] Phase 3 — Analyze once, play along (beats, bar chart, editor, loop done; needs Firefox check)
-- [ ] Phase 4 — Song structure
+- [~] Phase 4 — Song structure (sections, labels, key changes, editing done; needs real-song tuning)
 - [ ] Phase 5 — Korean CCM tuning
 - [ ] Phase 6 — Korean lyrics view
 - [ ] Phase 7 — Reference lookup and chart import

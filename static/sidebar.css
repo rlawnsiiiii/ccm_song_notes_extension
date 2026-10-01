@@ -31,3 +31,8 @@ button.primary { background: var(--accent); color: #fff; }
 .chord.sel { box-shadow: 0 0 0 2px var(--warn); }
 .editor { margin-top: 8px; padding: 8px; background: var(--card); border-radius: 6px; display: grid; gap: 6px; }
 .editor .row { flex-wrap: wrap; }
+.section { margin: 6px 0; }
+.sechead { display: flex; gap: 6px; align-items: center; margin: 4px 0 2px; }
+.seclabel { font: inherit; font-weight: 600; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 1px 4px; width: 8em; }
+.seclabel:hover, .seclabel:focus { border-color: var(--muted); }
+.sechead button { padding: 0 6px; }

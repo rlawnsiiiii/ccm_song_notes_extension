@@ -174,12 +174,32 @@ function renderChart(): void {
   let body: string;
   if (record?.beats && record.downbeat !== undefined && record.tempoBpm) {
     const bars = buildBars(chords, { bpm: record.tempoBpm, offset: record.beats[0] ?? 0, beats: record.beats, downbeat: record.downbeat, beatsPerBar: record.beatsPerBar ?? 4 }, record.durationSec);
-    body = `<div class="bars">${bars.map((b, n) =>
-      `<div class="bar" data-start="${b.startSec.toFixed(2)}" data-end="${b.endSec.toFixed(2)}"><span class="barno">${n + 1}</span>${b.chords.map((x) => chordButton(chords[x.eventIndex]!, x.eventIndex)).join("")}</div>`).join("")}</div>`;
+    const barHtml = (b: (typeof bars)[number], n: number) =>
+      `<div class="bar" data-start="${b.startSec.toFixed(2)}" data-end="${b.endSec.toFixed(2)}"><span class="barno">${n + 1}</span>${b.chords.map((x) => chordButton(chords[x.eventIndex]!, x.eventIndex)).join("")}</div>`;
+    const secs = record.sections;
+    if (secs.length === 0) body = `<div class="bars">${bars.map(barHtml).join("")}</div>`;
+    else {
+      const used = new Set<number>();
+      body = secs.map((sec, si) => {
+        const mine = bars.map((b, n) => ({ b, n })).filter(({ b }) => (b.startSec + b.endSec) / 2 >= sec.startSec && (b.startSec + b.endSec) / 2 < sec.endSec);
+        mine.forEach(({ n }) => used.add(n));
+        return `<div class="section" data-si="${si}"><div class="sechead">
+          <input class="seclabel" data-si="${si}" value="${esc(sec.label)}" size="8">
+          <span class="muted">${fmtTime(sec.startSec)}</span>
+          <button class="secloop" data-si="${si}" title="Loop this section">⟲</button>
+          <button class="secsplit" data-si="${si}" title="Split at the selected chord">✂</button>
+          <button class="secmerge" data-si="${si}" title="Merge with next section">⇣</button></div>
+          <div class="bars">${mine.map(({ b, n }) => barHtml(b, n)).join("")}</div></div>`;
+      }).join("") + (() => { const rest = bars.map((b, n) => ({ b, n })).filter(({ n }) => !used.has(n)); return rest.length ? `<div class="bars">${rest.map(({ b, n }) => barHtml(b, n)).join("")}</div>` : ""; })();
+    }
   } else {
     body = `<div class="grid">${chords.map((c, i) => chordButton(c, i)).join("")}</div>`;
   }
-  el.innerHTML = `${record?.tempoBpm ? `<div class="muted">${record.tempoBpm} BPM</div>` : ""}${body}<div id="editor"></div>`;
+  const kc = (record?.keyChanges ?? []).map((k) => {
+    const t = mod12(k.tonic + record!.transpose);
+    return `전조 → ${noteName(t, prefersFlats(t, k.mode))}${k.mode === "minor" ? "m" : ""} @ ${fmtTime(k.atSec)}`;
+  }).join(" · ");
+  el.innerHTML = `${record?.tempoBpm ? `<div class="muted">${record.tempoBpm} BPM${kc ? " · " + esc(kc) : ""}</div>` : ""}${body}<div id="editor"></div>`;
   el.querySelectorAll<HTMLButtonElement>(".chord").forEach((b) => {
     b.onclick = () => {
       const i = +b.dataset.i!;
@@ -189,9 +209,41 @@ function renderChart(): void {
       renderChart();
     };
   });
+  bindSections();
   renderEditor();
   lastHighlight = -2;
   highlightChart(status?.liveChordIdx ?? -1);
+}
+
+function bindSections(): void {
+  const secs = record?.sections ?? [];
+  const commit = (next: typeof secs) => void send({ type: "setSections", sections: next });
+  document.querySelectorAll<HTMLInputElement>(".seclabel").forEach((inp) => {
+    inp.onchange = () => {
+      const si = +inp.dataset.si!;
+      commit(secs.map((x, i) => (i === si ? { ...x, label: inp.value, source: "user" as const } : x)));
+    };
+  });
+  document.querySelectorAll<HTMLButtonElement>(".secloop").forEach((b) => {
+    b.onclick = () => { const x = secs[+b.dataset.si!]; if (x) { void send({ type: "setLoop", range: [x.startSec, x.endSec] }); void send({ type: "seek", sec: x.startSec }); } };
+  });
+  document.querySelectorAll<HTMLButtonElement>(".secmerge").forEach((b) => {
+    b.onclick = () => {
+      const si = +b.dataset.si!;
+      const a = secs[si], n = secs[si + 1];
+      if (!a || !n) return;
+      commit([...secs.slice(0, si), { ...a, endSec: n.endSec, source: "user" as const }, ...secs.slice(si + 2)]);
+    };
+  });
+  document.querySelectorAll<HTMLButtonElement>(".secsplit").forEach((b) => {
+    b.onclick = () => {
+      const si = +b.dataset.si!;
+      const x = secs[si];
+      const at = selected !== null ? record?.chords[selected]?.startSec : undefined;
+      if (!x || at === undefined || at <= x.startSec + 0.5 || at >= x.endSec - 0.5) { alert("Select a chord inside this section first."); return; }
+      commit([...secs.slice(0, si), { ...x, endSec: at, source: "user" as const }, { ...x, startSec: at, label: x.label, source: "user" as const }, ...secs.slice(si + 1)]);
+    };
+  });
 }
 
 function renderEditor(): void {
