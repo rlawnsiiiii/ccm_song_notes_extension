@@ -123,7 +123,7 @@ function render(): void {
     </section>
     <section class="meta">
       <span id="key"></span>
-      <span id="bpm" class="muted" title="Tempo (needs ~10 s of playing)"></span><span id="beatdots" class="dots"></span>
+      <span id="bpm" class="muted" title="Tempo (needs ~10 s of playing)"></span><button id="tempo-half" class="tiny" title="Tempo is double what I count: halve it">÷2</button><button id="tempo-double" class="tiny" title="Tempo is half what I count: double it">×2</button><span id="beatdots" class="dots"></span>
       <label>transpose <select id="transpose">${Array.from({ length: 25 }, (_, i) => i - 12)
         .map((n) => `<option value="${n}" ${n === (record?.transpose ?? 0) ? "selected" : ""}>${n > 0 ? "+" : ""}${n}</option>`).join("")}</select></label>
       <label>show <select id="mode">
@@ -180,6 +180,8 @@ function bind(): void {
     msg.textContent = r?.importResult?.message ?? "Could not reach the page.";
     msg.className = r?.importResult?.ok ? "ok" : "warn";
   };
+  $("tempo-half").onclick = () => void send({ type: "rescaleTempo", factor: 0.5 });
+  $("tempo-double").onclick = () => void send({ type: "rescaleTempo", factor: 2 });
   $("tab-chart").onclick = () => { prefs.view = "chart"; savePrefs(); render(); };
   $("tab-lyrics").onclick = () => { prefs.view = "lyrics"; savePrefs(); render(); };
   $("reanalyze").onclick = () => void send({ type: "reanalyze" });

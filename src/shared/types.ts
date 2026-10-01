@@ -43,6 +43,8 @@ export interface SongRecord {
   beats?: number[]; // seconds
   downbeat?: number; // index into beats of the first bar start (mod beatsPerBar)
   beatsPerBar?: number;
+  /** set when the user flipped the tempo octave (÷2 / ×2); re-analysis then keeps the tempo */
+  tempoLocked?: boolean;
   chords: ChordEvent[];
   sections: Section[];
   lyrics?: { startSec: number; endSec: number; text: string }[];

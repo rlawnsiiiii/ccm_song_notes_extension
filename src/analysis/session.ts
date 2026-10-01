@@ -4,7 +4,9 @@ import { mergeChords } from "./merge";
 import { buildBars } from "./bars";
 import { cleanTitle } from "../music/title";
 import { barInfos, detectKeyChanges, findStructure, mergeSections } from "./structure";
-import { estimateBeatGrid, onsetEnvelope, snapChords } from "./beats";
+import { estimateBeatGrid, gridFromTempo, onsetEnvelope, snapChords } from "./beats";
+import { estimateTempo } from "./tempo";
+import { ONSET_HOP_SEC, normalizeOnsets } from "./onset";
 
 export const HOP_SEC = 0.1;
 /** Seconds of audio needed before a tempo is shown. */
@@ -16,6 +18,8 @@ const bucket = (t: number) => Math.round(t / HOP_SEC);
 /** All frames heard so far for one video, plus the record built from them. */
 export class SongSession {
   readonly frames = new Map<number, FeatureFrame>();
+  /** fine onset strength (hop ONSET_HOP_SEC) keyed by bucket; used for tempo */
+  readonly onsets = new Map<number, number>();
   record: SongRecord;
   dirty = false;
   private gridHeard = 0;
@@ -39,6 +43,57 @@ export class SongSession {
   addFrame(f: FeatureFrame): void {
     this.frames.set(bucket(f.t), f);
     this.dirty = true;
+  }
+
+  addOnset(t: number, v: number): void {
+    const k = Math.round(t / ONSET_HOP_SEC);
+    if (k < 0) return;
+    this.onsets.set(k, Math.max(this.onsets.get(k) ?? 0, v));
+    this.dirty = true;
+  }
+
+  /** [t0, v0, t1, v1, …] */
+  packOnsets(): Float32Array {
+    const keys = [...this.onsets.keys()].sort((a, b) => a - b);
+    const out = new Float32Array(keys.length * 2);
+    keys.forEach((k, i) => { out[2 * i] = k * ONSET_HOP_SEC; out[2 * i + 1] = this.onsets.get(k)!; });
+    return out;
+  }
+
+  loadOnsets(packed: ArrayLike<number>): void {
+    for (let i = 0; i + 1 < packed.length; i += 2) this.onsets.set(Math.round(packed[i]! / ONSET_HOP_SEC), packed[i + 1]!);
+  }
+
+  private onsetEnvelopeArray(): Float32Array {
+    let max = 0;
+    for (const k of this.onsets.keys()) if (k > max) max = k;
+    const env = new Float32Array(max + 1);
+    for (const [k, v] of this.onsets) env[k] = v;
+    return normalizeOnsets(env);
+  }
+
+  /** User flipped the tempo octave: ×2 or ÷2. Bar starts stay where they are. */
+  rescaleTempo(factor: 2 | 0.5): void {
+    const r = this.record;
+    if (!r.beats || r.tempoBpm === undefined) return;
+    const per = r.beatsPerBar ?? 4;
+    const dbIdx = r.downbeat ?? 0;
+    if (factor === 0.5) {
+      // keep every second beat, starting from the beat that begins a bar
+      const keepEven = dbIdx % 2 === 0;
+      const kept = r.beats.filter((_, i) => (i % 2 === 0) === keepEven);
+      const firstBarBeat = r.beats[dbIdx]!;
+      r.beats = kept;
+      r.downbeat = Math.max(0, kept.findIndex((t) => Math.abs(t - firstBarBeat) < 1e-6)) % per;
+    } else {
+      const out: number[] = [];
+      r.beats.forEach((t, i) => { out.push(t); const next = r.beats![i + 1]; out.push(next !== undefined ? (t + next) / 2 : t + 30 / r.tempoBpm!); });
+      r.beats = out;
+      r.downbeat = (dbIdx * 2) % per;
+    }
+    r.tempoBpm = Math.round(r.tempoBpm * factor * 10) / 10;
+    r.tempoLocked = true;
+    this.reanalyze();
   }
 
   loadFrames(frames: FeatureFrame[]): void {
@@ -76,9 +131,15 @@ export class SongSession {
     const dur = this.record.durationSec || all[all.length - 1]!.t + 1;
     const heard = ranges.reduce((s, r) => s + r[1] - r[0], 0);
     // tempo first (it only needs onsets), so chords can then be decoded beat by beat
-    if (heard >= MIN_TEMPO_SEC && (!this.record.beats || heard - this.gridHeard > 10)) {
-      const grid = estimateBeatGrid(onsetEnvelope(all), dur);
+    if (!this.record.tempoLocked && heard >= MIN_TEMPO_SEC && (!this.record.beats || heard - this.gridHeard > 10)) {
       this.gridHeard = heard;
+      let grid: { bpm: number; beats: number[]; downbeat: number; beatsPerBar: number } | null = null;
+      if (this.onsets.size > 200) {
+        const est = estimateTempo(this.onsetEnvelopeArray());
+        if (est) grid = gridFromTempo(est, dur, onsetEnvelope(all));
+      }
+      // saved songs from before the fine onset signal existed: fall back to the chroma-based estimate
+      if (!grid) grid = estimateBeatGrid(onsetEnvelope(all), dur);
       if (grid) {
         this.record.tempoBpm = Math.round(grid.bpm * 10) / 10;
         this.record.beats = grid.beats.map((b) => Math.round(b * 1000) / 1000);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 — 2026-10-02
+- Tempo detection rebuilt on a fine onset signal (spectral flux, 40 Hz) instead of chord changes at 10 Hz.
+  On a synthetic band with known tempo: 61/96 within 3% (was 48/96); strummed/drummed songs 45/48.
+- ÷2 / ×2 buttons next to the BPM for songs read at half or double speed (kept across re-analysis).
+- Tempo and beat dots appear after ~10 s of playing.
+
 ## 1.0.1 — 2026-10-02
 - Tempo (BPM) now shows after ~10 s of playing, with a beat indicator, instead of only after 30 s.
 - Chords are decoded beat by beat once the tempo is known, so the chord no longer flickers when a
