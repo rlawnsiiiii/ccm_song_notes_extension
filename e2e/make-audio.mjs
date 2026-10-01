@@ -21,6 +21,20 @@ for (let b = 0; b < bars; b++) {
   const len = Math.min(Math.floor(bar * SR), n - start);
   pcm.set(chordSamples(root, q, root, len, start), start);
 }
+// vocal-like melody: scale tones of G major (many are NOT chord tones) changing every 0.25-0.6 s
+const scale = [7, 9, 11, 0, 2, 4, 6]; // G A B C D E F#
+let mt = 0, mnote = 0;
+while (mt < n / SR) {
+  const dur = 0.25 + rnd() * 0.35;
+  mnote = scale[Math.floor(rnd() * scale.length)];
+  const f = 440 * 2 ** ((72 + mnote - 69) / 12); // around C5
+  const s0 = Math.floor(mt * SR), s1 = Math.min(n, Math.floor((mt + dur) * SR));
+  for (let i = s0; i < s1; i++) {
+    const t = i / SR, env = Math.min(1, (i - s0) / 800, (s1 - i) / 800);
+    pcm[i] += env * 0.16 * (Math.sin(2 * Math.PI * f * t) + 0.4 * Math.sin(2 * Math.PI * 2 * f * t));
+  }
+  mt += dur;
+}
 // percussion: noise bursts on every beat, stronger on the downbeat
 for (let k = 0; k < bars * 4; k++) {
   const s = Math.floor(k * beat * SR), amp = k % 4 === 0 ? 0.5 : 0.2;

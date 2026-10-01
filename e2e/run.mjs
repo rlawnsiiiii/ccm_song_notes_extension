@@ -80,13 +80,18 @@ try {
 
   // live phase: sample the live chord against the known progression
   const samples = [];
+  const liveSeq = []; // every running sample, to count flicker
+  let lastT = -1;
+  let firstBpmAt = null;
   const t0 = Date.now();
   let lastAudio = "";
   while (Date.now() - t0 < 72000) {
     const s = await state();
     if (s?.st) {
       lastAudio = s.st.audio;
+      if (firstBpmAt === null && s.record?.tempoBpm) firstBpmAt = { at: s.st.time, bpm: s.record.tempoBpm };
       const t = s.st.time;
+      if (s.st.audio === "running" && t > 3 && Math.abs(t - lastT) > 0.05) { liveSeq.push({ t, c: symName(s.st.live) }); lastT = t; }
       if (s.st.audio === "running" && t > 3) {
         const bar = Math.floor(t / 2.4);
         const within = (t % 2.4);
@@ -101,6 +106,12 @@ try {
   const s1 = await state();
 
   check("audio graph ran", () => assert.ok(["running", "paused"].includes(lastAudio), `audio state was ${lastAudio}`));
+  const changes = liveSeq.filter((x, i) => i > 0 && x.c !== liveSeq[i - 1].c).length;
+  const span = liveSeq.length ? liveSeq[liveSeq.length - 1].t - liveSeq[0].t : 1;
+  const trueChanges = span / 2.4;
+  console.log(`LIVE FLICKER: ${changes} chord changes over ${span.toFixed(0)} s, true ${trueChanges.toFixed(0)} (ratio ${(changes / trueChanges).toFixed(2)})`);
+  check("live chord does not flicker (≤1.4× true changes)", () => assert.ok(changes / trueChanges <= 1.4, `ratio ${(changes / trueChanges).toFixed(2)}`));
+  check("tempo is known within ~20 s of playing", () => assert.ok(firstBpmAt && firstBpmAt.at < 22 && Math.abs(firstBpmAt.bpm - 100) < 6, JSON.stringify(firstBpmAt)));
   check("collected live samples", () => assert.ok(samples.length > 100, `only ${samples.length}`));
   const ok = samples.filter((x) => x.live === x.want).length;
   const wrong = samples.filter((x) => x.live !== x.want);

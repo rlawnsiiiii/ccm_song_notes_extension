@@ -7,6 +7,10 @@ import { barInfos, detectKeyChanges, findStructure, mergeSections } from "./stru
 import { estimateBeatGrid, onsetEnvelope, snapChords } from "./beats";
 
 export const HOP_SEC = 0.1;
+/** Seconds of audio needed before a tempo is shown. */
+const MIN_TEMPO_SEC = 10;
+/** Per-unit stay probability for the live chord: lower than offline so a change shows within a beat or two. */
+export const LIVE_STAY = 0.55;
 const bucket = (t: number) => Math.round(t / HOP_SEC);
 
 /** All frames heard so far for one video, plus the record built from them. */
@@ -66,17 +70,13 @@ export class SongSession {
     const key = estimateKey(all);
     const locked = this.record.key.confidence >= 1; // set by the user
     const keyChanged = key && !locked && (key.tonic !== this.record.key.tonic || key.mode !== this.record.key.mode);
-    let detected: ChordEvent[] = [];
-    const ranges: [number, number][] = [];
-    for (const seg of segs) {
-      detected = detected.concat(analyzeFrames(seg, this.record.key.confidence ? this.record.key : key).chords);
-      ranges.push([seg[0]!.t - HOP_SEC / 2, seg[seg.length - 1]!.t + HOP_SEC / 2]);
-    }
+    const ranges: [number, number][] = segs.map((seg) => [seg[0]!.t - HOP_SEC / 2, seg[seg.length - 1]!.t + HOP_SEC / 2]);
     if (key && (keyChanged || this.record.key.confidence === 0)) this.record.key = key;
     else if (key && !locked) this.record.key.confidence = key.confidence;
     const dur = this.record.durationSec || all[all.length - 1]!.t + 1;
     const heard = ranges.reduce((s, r) => s + r[1] - r[0], 0);
-    if (heard >= 30 && (!this.record.beats || heard - this.gridHeard > 15)) {
+    // tempo first (it only needs onsets), so chords can then be decoded beat by beat
+    if (heard >= MIN_TEMPO_SEC && (!this.record.beats || heard - this.gridHeard > 10)) {
       const grid = estimateBeatGrid(onsetEnvelope(all), dur);
       this.gridHeard = heard;
       if (grid) {
@@ -86,12 +86,21 @@ export class SongSession {
         this.record.beatsPerBar = grid.beatsPerBar;
       }
     }
+    const lite = this.gridLite();
+    let detected: ChordEvent[] = [];
+    for (const seg of segs) detected = detected.concat(analyzeFrames(seg, this.record.key.confidence ? this.record.key : key, lite).chords);
     if (this.record.beats) detected = snapChords(detected, this.record.beats);
     this.record.chords = mergeChords(this.record.chords, detected);
     this.record.analyzedRanges = ranges;
     this.updateStructure(all, ranges);
     this.record.analyzerVersion = ANALYZER_VERSION;
     this.record.updatedAt = new Date().toISOString();
+  }
+
+  /** The beat grid in the form the chord decoder wants, if a tempo is known. */
+  gridLite(): { period: number; offset: number } | null {
+    const r = this.record;
+    return r.beats && r.beats.length > 1 && r.tempoBpm ? { period: 60 / r.tempoBpm, offset: r.beats[0]! } : null;
   }
 
   /** Sections and key changes need a (nearly) complete pass plus a beat grid. */
@@ -119,7 +128,7 @@ export class SongSession {
       win.unshift(f);
     }
     if (win.length < 3) return null;
-    const ch = analyzeFrames(win, key).chords;
+    const ch = analyzeFrames(win, key, this.gridLite(), { stay: LIVE_STAY }).chords;
     return ch[ch.length - 1] ?? null;
   }
 
