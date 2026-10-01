@@ -61,3 +61,20 @@ export interface FeatureFrame {
   bass: number[]; // 12
   energy: number; // RMS
 }
+
+export interface ContiItem {
+  videoId: string;
+  /** target key for this service; null = keep the song's own key */
+  targetKey: { tonic: PitchClass; mode: Mode } | null;
+  notes: string; // e.g. "후렴 2번 반복"
+}
+
+/** 콘티: the setlist for one service. */
+export interface Conti {
+  id: string;
+  name: string;
+  date: string; // yyyy-mm-dd
+  items: ContiItem[];
+  numbers: boolean; // print numbers instead of chord names
+  updatedAt: string;
+}

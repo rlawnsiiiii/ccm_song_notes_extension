@@ -37,6 +37,9 @@ const server = createServer((req, res) => {
       res.writeHead(200, { "Content-Type": "audio/wav", "Content-Length": wav.length, "Accept-Ranges": "bytes" });
       res.end(wav);
     }
+  } else if (req.url.startsWith("/conti-host")) {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end(`<!doctype html><title>conti host</title><iframe id="cf" style="width:1100px;height:900px" src="moz-extension://${EXT_UUID}/conti.html"></iframe>`);
   } else if (req.url.startsWith("/host")) {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(`<!doctype html><title>sidebar host</title><iframe id="sb" style="width:380px;height:900px" src="moz-extension://${EXT_UUID}/sidebar.html?tab=localhost:${PORT}/watch"></iframe>`);
@@ -184,6 +187,40 @@ try {
   await driver.switchTo().window((await driver.getAllWindowHandles()).find((h) => h !== videoWindow));
   const s4 = s5;
   check("editing a chord in the sidebar reaches the content script", () => assert.ok(s4.record.chords.some((c) => c.source === "user" && c.root === 5), "no user chord with root F"));
+  await driver.close();
+  await driver.switchTo().window(videoWindow);
+
+  // ---- 콘티 builder (extension page in an iframe) ----
+  await driver.switchTo().newWindow("window");
+  await driver.get(`http://localhost:${PORT}/conti-host`);
+  await driver.switchTo().frame(await driver.findElement(By.id("cf")));
+  const cval = (sel) => driver.executeScript("return document.querySelector(arguments[0])?.value ?? null", sel);
+  await driver.wait(async () => (await count(".song-entry")) >= 1, 15000, "conti page lists no songs").catch((e) => results.push(["FAIL", e.message]));
+  await driver.executeScript("document.getElementById('conti-new').click()");
+  await driver.wait(async () => (await count(".add")) >= 1, 5000);
+  await driver.executeScript("document.querySelector('.add').click()");
+  await driver.wait(async () => (await count(".item")) === 1, 5000, "song not added to conti").catch((e) => results.push(["FAIL", e.message]));
+  await driver.executeScript("const k = document.querySelector('.keysel'); k.value = '9'; k.dispatchEvent(new Event('change'))");
+  await driver.executeScript("const n = document.querySelector('.item .notes'); n.value = '후렴 2번 반복'; n.dispatchEvent(new Event('input'))");
+  await driver.executeScript("document.getElementById('conti-name').value = '주일예배'; document.getElementById('conti-name').dispatchEvent(new Event('input'))");
+  await sleep(600);
+  const sheetText = await driver.executeScript("return document.querySelector('.sheet')?.innerText ?? ''");
+  check("preview sheet shows target key A, notes and chords", () => assert.ok(/Key A/.test(sheetText) && sheetText.includes("후렴 2번 반복") && /\bA\b/.test(sheetText) && /F#m/.test(sheetText), sheetText.slice(0, 160).replace(/\s+/g, " ")));
+  await driver.executeScript("document.getElementById('show-text').click()");
+  const exportText = await cval("#export-text");
+  check("ChordPro export is transposed and has notes", () => assert.ok(exportText.includes("{key: A}") && exportText.includes("{comment: 후렴 2번 반복}") && exportText.includes("주일예배"), exportText.slice(0, 200)));
+  await driver.executeScript("const c = document.getElementById('conti-numbers'); c.checked = true; c.dispatchEvent(new Event('change'))");
+  await sleep(300);
+  const numSheet = await driver.executeScript("return document.querySelector('.sheet')?.innerText ?? ''");
+  check("numbers-only sheet", () => assert.ok(/\b6m\b/.test(numSheet) && !/F#m/.test(numSheet), numSheet.slice(0, 120).replace(/\s+/g, " ")));
+  // persistence: reload the page
+  await driver.switchTo().defaultContent();
+  await driver.navigate().refresh();
+  await driver.switchTo().frame(await driver.findElement(By.id("cf")));
+  await driver.wait(async () => (await count(".item")) === 1, 10000, "conti not restored").catch((e) => results.push(["FAIL", e.message]));
+  const restoredName = await cval("#conti-name");
+  check("conti restored with its name", () => assert.equal(restoredName, "주일예배"));
+  await driver.switchTo().defaultContent();
   await driver.close();
   await driver.switchTo().window(videoWindow);
 

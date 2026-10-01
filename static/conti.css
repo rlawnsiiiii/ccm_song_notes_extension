@@ -1,0 +1,27 @@
+:root { color-scheme: light dark; --bg: #fff; --fg: #1b1b1f; --muted: #6b6b76; --card: #f3f3f6; --accent: #3b6cf6; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1c1b22; --fg: #f2f2f5; --muted: #9a9aa6; --card: #2b2a33; --accent: #7aa2ff; } }
+body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 12px; } h2 { font-size: 15px; margin: 16px 0 6px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.cols { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(360px, 2fr); gap: 16px; }
+input, select, textarea, button { font: inherit; color: inherit; background: var(--card); border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; }
+button { cursor: pointer; } button.primary { background: var(--accent); color: #fff; }
+.card { background: var(--card); border-radius: 8px; padding: 8px 10px; margin: 6px 0; }
+.item { display: grid; grid-template-columns: 24px 1fr auto; gap: 6px 8px; align-items: center; }
+.item .notes { grid-column: 2 / 4; width: 100%; box-sizing: border-box; background: var(--bg); }
+.muted { color: var(--muted); }
+textarea.export { width: 100%; height: 220px; box-sizing: border-box; font-family: ui-monospace, Menlo, monospace; }
+/* printable sheets */
+.sheet { margin: 12px 0; padding: 12px 16px; border: 1px solid var(--muted); border-radius: 8px; background: #fff; color: #000; }
+.sheet h3 { margin: 0; font-size: 20px; } .sheet .meta { color: #444; margin-bottom: 6px; }
+.sheet .sec { margin: 10px 0 2px; font-weight: 700; }
+.sheet .bars { display: grid; grid-template-columns: repeat(4, 1fr); border-left: 1px solid #000; }
+.sheet .bar { border-right: 1px solid #000; border-bottom: 1px solid #ccc; padding: 6px 8px; min-height: 28px; font-weight: 600; font-size: 16px; display: flex; gap: 10px; }
+.sheet .notes { margin-top: 8px; font-style: italic; }
+@page { size: A4; margin: 14mm; }
+@media print {
+  body { padding: 0; background: #fff; }
+  #editor { display: none !important; }
+  .sheet { border: none; page-break-after: always; margin: 0; padding: 0; }
+  .sheet:last-child { page-break-after: auto; }
+}

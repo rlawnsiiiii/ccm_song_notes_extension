@@ -1,9 +1,9 @@
-import type { FeatureFrame, SongRecord } from "../shared/types";
+import type { Conti, FeatureFrame, SongRecord } from "../shared/types";
 import type { ExportBundle } from "../shared/messages";
 import { FEATURE_VERSION } from "../analysis/chroma";
 
 const DB_NAME = "wcc";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -12,6 +12,7 @@ function open(): Promise<IDBDatabase> {
       const db = req.result;
       if (!db.objectStoreNames.contains("songs")) db.createObjectStore("songs", { keyPath: "videoId" });
       if (!db.objectStoreNames.contains("frames")) db.createObjectStore("frames", { keyPath: "key" });
+      if (!db.objectStoreNames.contains("contis")) db.createObjectStore("contis", { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -38,6 +39,10 @@ export const deleteSong = (videoId: string) =>
   tx("songs", "readwrite", (s) => s.delete(videoId)).then(() =>
     tx("frames", "readwrite", (s) => s.delete(framesKey(videoId, "*"))).catch(() => undefined),
   );
+
+export const saveConti = (c: Conti) => tx("contis", "readwrite", (s) => s.put(c)).then(() => undefined);
+export const listContis = () => tx<Conti[]>("contis", "readonly", (s) => s.getAll());
+export const deleteConti = (id: string) => tx("contis", "readwrite", (s) => s.delete(id)).then(() => undefined);
 
 const framesKey = (videoId: string, version: string) => `${videoId}|${version}`;
 
@@ -78,7 +83,7 @@ export async function getFrames(videoId: string, version: string): Promise<Featu
 
 export async function exportAll(withFrames = true): Promise<ExportBundle> {
   const songs = await listSongs();
-  const bundle: ExportBundle = { format: "worship-chord-companion", version: 1, songs };
+  const bundle: ExportBundle = { format: "worship-chord-companion", version: 1, songs, contis: await listContis() };
   if (withFrames) {
     bundle.frames = {};
     for (const s of songs) {
@@ -96,5 +101,6 @@ export async function importAll(data: ExportBundle): Promise<number> {
     const packed = data.frames?.[s.videoId];
     if (packed?.length) await saveFrames(s.videoId, FEATURE_VERSION, unpackFrames(Float32Array.from(packed)));
   }
+  for (const c of data.contis ?? []) await saveConti(c);
   return data.songs.length;
 }
