@@ -24,6 +24,12 @@ describe("beats", () => {
     const rel = (g.offset - 0.13 + 600) % (60 / g.bpm);
     expect(Math.min(rel, 60 / g.bpm - rel)).toBeLessThan(0.08);
   });
+  it.each([66, 78, 92, 100, 112, 128, 140])("finds %i BPM", (bpm) => {
+    const g = estimateBeatGrid(pulses(bpm, 100, 4, 0.31), 100)!;
+    // half-time is an acceptable reading of fast songs
+    const err = Math.min(Math.abs(g.bpm - bpm), Math.abs(g.bpm * 2 - bpm));
+    expect(err).toBeLessThan(bpm * 0.03);
+  });
   it("finds the downbeat", () => {
     const g = estimateBeatGrid(pulses(100, 120), 120)!;
     // accents at beat index multiples of 4 from phase 0.13

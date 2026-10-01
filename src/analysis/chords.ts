@@ -8,7 +8,7 @@ export interface ChordCandidate {
 }
 
 /** Qualities available for detection per phase. Triads first; extensions are penalised. */
-export const DEFAULT_QUALITIES: ChordQuality[] = ["maj", "min", "7", "maj7", "m7", "sus4", "sus2", "add9"];
+export const DEFAULT_QUALITIES: ChordQuality[] = ["maj", "min", "7", "maj7", "m7", "sus4", "sus2", "add9", "dim"];
 
 /** Penalty so a richer chord only wins when it explains the data clearly better. */
 const COMPLEXITY_PENALTY: Record<ChordQuality, number> = {

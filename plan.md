@@ -341,7 +341,11 @@ Not legal advice. Check these before publishing anything.
 - [~] Phase 2 — Test set and evaluation (tooling done; real test set to be collected)
 - [~] Phase 3 — Analyze once, play along (beats, bar chart, editor, loop done; needs Firefox check)
 - [~] Phase 4 — Song structure (sections, labels, key changes, editing done; needs real-song tuning)
-- [ ] Phase 5 — Korean CCM tuning
+- [~] Phase 5 — Korean CCM tuning (vocabulary, key and progression priors, numbers, transpose, simplify done; needs real-song scoring)
 - [ ] Phase 6 — Korean lyrics view
 - [ ] Phase 7 — Reference lookup and chart import
 - [ ] Phase 8 — 콘티 builder and export
+
+| 2026-10-01 | Own chroma/key/chord code instead of Meyda/Essentia.js | No licence issue (Essentia is AGPL), runs identically in Node for evaluation, small |
+| 2026-10-01 | Content script owns the live SongSession; background owns IndexedDB; sidebar sends edit commands | One writer per piece of state; sidebar can be closed without losing analysis |
+| 2026-10-01 | Beat tracking from chroma flux + energy rise at 10 Hz with a tempo prior, half-time accepted | Cheap, no extra audio features needed; fast songs may read as half tempo |
