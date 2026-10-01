@@ -44,6 +44,7 @@ export type ToContent =
   | { type: "fetchLyrics" }
   | { type: "importChart"; text: string }
   | { type: "setLyricNudge"; key: string; chars: number }
+  | { type: "rescaleTempo"; factor: 2 | 0.5 }
   | { type: "reanalyze" }
   | { type: "resetAnalysis" }
   | { type: "importRecord"; record: SongRecord };
@@ -56,6 +57,8 @@ export type ToBackground =
   | { type: "db:deleteSong"; videoId: string }
   | { type: "db:saveFrames"; videoId: string; version: string; data: number[] }
   | { type: "db:getFrames"; videoId: string; version: string }
+  | { type: "db:saveOnsets"; videoId: string; data: number[] }
+  | { type: "db:getOnsets"; videoId: string }
   | { type: "db:listContis" }
   | { type: "db:saveConti"; conti: Conti }
   | { type: "db:deleteConti"; id: string }
@@ -69,6 +72,8 @@ export interface ExportBundle {
   contis?: Conti[];
   /** Packed feature frames per video id, so analysis can be re-run offline. */
   frames?: Record<string, number[]>;
+  /** Packed fine onset strength per video id ([t, v, …]) */
+  onsets?: Record<string, number[]>;
 }
 
 export const isToSidebar = (m: unknown): m is ToSidebar =>

@@ -10,6 +10,9 @@ export const TAP_FFT = 8192;
 
 export class AudioTap {
   readonly analyser: AnalyserNode;
+  /** short window for onset detection (read every ~25 ms) */
+  readonly fast: AnalyserNode;
+  private fastBuf = new Float32Array(2048);
   readonly ctx: AudioContext;
   readonly sampleRate: number;
   private buf: Float32Array;
@@ -31,6 +34,10 @@ export class AudioTap {
     this.analyser.fftSize = TAP_FFT;
     this.analyser.smoothingTimeConstant = 0;
     this.connectedSrc.connect(this.analyser);
+    this.fast = this.ctx.createAnalyser();
+    this.fast.fftSize = 2048;
+    this.fast.smoothingTimeConstant = 0;
+    this.connectedSrc.connect(this.fast);
     this.buf = new Float32Array(TAP_FFT);
   }
 
@@ -49,7 +56,14 @@ export class AudioTap {
     return this.buf;
   }
 
+  /** The newest 1024 samples. The returned view is reused. */
+  readFast(): Float32Array {
+    this.fast.getFloatTimeDomainData(this.fastBuf as Float32Array<ArrayBuffer>);
+    return this.fastBuf.subarray(1024);
+  }
+
   dispose(): void {
+    try { this.connectedSrc.disconnect(this.fast); } catch { /* already gone */ }
     try { this.connectedSrc.disconnect(this.analyser); } catch { /* already gone */ }
   }
 }

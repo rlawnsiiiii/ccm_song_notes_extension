@@ -1,4 +1,5 @@
 import { ChromaExtractor } from "../analysis/chroma";
+import { OnsetExtractor, ONSET_HOP_SEC } from "../analysis/onset";
 import { SongSession } from "../analysis/session";
 import { chordIndexAt, nextDifferent } from "../analysis/merge";
 import { ANALYZER_VERSION } from "../analysis/analyzer";
@@ -20,6 +21,8 @@ const REANALYZE_MS = 4000;
 let video: HTMLVideoElement | null = null;
 let tap: AudioTap | null = null;
 let extractor: ChromaExtractor | null = null;
+let onsetExtractor: OnsetExtractor | null = null;
+let lastOnsetT = -1;
 let session: SongSession | null = null;
 let connected = false;
 let audioState: StatusMsg["audio"] = "idle";
@@ -50,6 +53,8 @@ async function loadSession(): Promise<void> {
     known = true;
     const { data } = await bg<{ data: number[] }>({ type: "db:getFrames", videoId: id, version: FEATURE_VERSION });
     if (getVideoId() === id && data?.length) session.loadFrames(unpackFrames(Float32Array.from(data)));
+    const on = await bg<{ data: number[] }>({ type: "db:getOnsets", videoId: id });
+    if (getVideoId() === id && on?.data?.length) session.loadOnsets(on.data);
   }
   session.record.durationSec ||= duration;
   toSidebar({ type: "song", record: session.record });
@@ -87,6 +92,7 @@ async function connect(): Promise<void> {
       tap?.dispose();
       tap = new AudioTap(video);
       extractor = new ChromaExtractor({ sampleRate: tap.sampleRate, frameSize: TAP_FFT });
+      onsetExtractor = new OnsetExtractor(tap.sampleRate);
     }
     connected = true;
     errorText = undefined;
@@ -111,6 +117,7 @@ async function persist(force = false): Promise<void> {
     s.reanalyze();
     await bg({ type: "db:saveSong", record: s.record });
     await bg({ type: "db:saveFrames", videoId: s.record.videoId, version: FEATURE_VERSION, data: Array.from(packForSave(s)) });
+    await bg({ type: "db:saveOnsets", videoId: s.record.videoId, data: Array.from(s.packOnsets()) });
     toSidebar({ type: "song", record: s.record });
   } catch (e) {
     console.warn("[wcc] save failed", e);
@@ -173,6 +180,23 @@ function stableLive(raw: StatusMsg["live"]): StatusMsg["live"] {
   return liveShown;
 }
 
+/** ~40 Hz: onset strength from a short window, for tempo. Cheap (one 1024-point FFT). */
+function onsetTick(): void {
+  const v = video;
+  if (!v || !session || !connected || !tap || !onsetExtractor || !tap.running) return;
+  if (v.paused || v.ended || v.seeking || v.readyState < 3 || isAdPlaying()) { onsetExtractor.reset(); lastOnsetT = -1; return; }
+  const t = v.currentTime - (v.playbackRate * 1024) / tap.sampleRate / 2;
+  if (t < 0) return;
+  const dt = t - lastOnsetT;
+  if (lastOnsetT >= 0 && dt < 0.012) return;
+  if (lastOnsetT < 0 || dt > 0.12 || dt < 0) onsetExtractor.reset(); // seek or stall: the previous window is not adjacent
+  const flux = onsetExtractor.push(tap.readFast());
+  const had = lastOnsetT >= 0 && dt > 0 && dt <= 0.12;
+  lastOnsetT = t;
+  // windows closer or further apart than the nominal hop change the flux size; normalise per hop
+  if (had) session.addOnset(t, (flux * ONSET_HOP_SEC) / Math.max(0.012, dt));
+}
+
 function status(): StatusMsg {
   const v = video;
   const time = v?.currentTime ?? 0;
@@ -216,6 +240,7 @@ browser.runtime.onMessage.addListener((raw: unknown) => {
       return Promise.resolve({ ...status(), importResult: r });
     }
     case "fetchLyrics": { const id = getVideoId(); if (id && session) { delete session.record.lyrics; void loadLyrics(id, 2); } break; }
+    case "rescaleTempo": if (session) { session.rescaleTempo(m.factor); void persist(true); toSidebar({ type: "song", record: session.record }); } break;
     case "reanalyze": if (session) { session.reanalyze(); void persist(true); } break;
     case "resetAnalysis":
       if (session) {
@@ -241,6 +266,7 @@ browser.runtime.onMessage.addListener((raw: unknown) => {
 });
 
 setInterval(tick, POLL_MS);
+setInterval(onsetTick, 25);
 setInterval(() => toSidebar(status()), 250);
 
 if (__WCC_TEST__) {

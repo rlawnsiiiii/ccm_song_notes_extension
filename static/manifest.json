@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Worship Chord Companion",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Shows key, chords and song structure for worship videos on YouTube. Everything runs locally.",
   "browser_specific_settings": {
     "gecko": {

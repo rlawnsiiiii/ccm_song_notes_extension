@@ -103,3 +103,28 @@ export function snapChords(chords: ChordEvent[], beats: number[], maxBeatFractio
 }
 
 export interface Bar { index: number; startSec: number; endSec: number; beats: ChordEvent[][] }
+
+/**
+ * Beat grid from a tempo estimate (fine onset envelope) plus the chroma-change envelope, which
+ * marks bar starts: the beat phase (mod beatsPerBar) with the most harmonic change is the downbeat.
+ */
+export function gridFromTempo(
+  tempo: { bpm: number; offset: number }, durationSec: number, chordFlux: OnsetPoint[], beatsPerBar = 4,
+): BeatGrid {
+  const period = 60 / tempo.bpm;
+  // start the grid one period before 0 so beat indices are stable; keep only beats inside the song
+  let start = tempo.offset;
+  while (start - period >= 0) start -= period;
+  const beats: number[] = [];
+  for (let t = start; t < durationSec; t += period) beats.push(t);
+  const sums = new Array<number>(beatsPerBar).fill(0);
+  const at = (t: number) => {
+    let best = 0;
+    for (const p of chordFlux) { if (p.t > t + period * 0.35) break; if (p.t >= t - period * 0.35 && p.v > best) best = p.v; }
+    return best;
+  };
+  beats.forEach((t, i) => { sums[i % beatsPerBar]! += at(t); });
+  let downbeat = 0;
+  for (let i = 1; i < beatsPerBar; i++) if (sums[i]! > sums[downbeat]!) downbeat = i;
+  return { bpm: tempo.bpm, offset: start, beats, downbeat, beatsPerBar };
+}

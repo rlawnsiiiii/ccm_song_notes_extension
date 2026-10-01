@@ -163,6 +163,13 @@ try {
   const aChord = await driver.executeScript("return [...document.querySelectorAll('.chord')].slice(0, 4).map(b => b.textContent)");
   check("transpose +2 shows A-E-F#m-D", () => assert.deepEqual(aChord, ["A", "E", "F#m", "D"]));
   await driver.executeScript("const t = document.getElementById('transpose'); t.value = '0'; t.dispatchEvent(new Event('change'))");
+  // tempo shown, and the octave can be flipped by the user
+  const bpmText = await text("#bpm");
+  check("sidebar shows the tempo", () => assert.ok(/♩ (9\d|10\d)/.test(bpmText ?? ""), `bpm text: ${bpmText}`));
+  await driver.executeScript("document.getElementById('tempo-half').click()");
+  await driver.wait(async () => /♩ 50/.test((await text("#bpm")) ?? ""), 8000, "÷2 did not halve the tempo").catch((e) => results.push(["FAIL", e.message]));
+  await driver.executeScript("document.getElementById('tempo-double').click()");
+  await driver.wait(async () => /♩ (9\d|10\d)/.test((await text("#bpm")) ?? ""), 8000, "×2 did not restore the tempo").catch((e) => results.push(["FAIL", e.message]));
   // lyrics view
   await driver.executeScript("document.getElementById('tab-lyrics').click()");
   await driver.wait(async () => (await count(".lyr")) > 3, 8000, "lyrics view empty").catch((e) => results.push(["FAIL", e.message]));

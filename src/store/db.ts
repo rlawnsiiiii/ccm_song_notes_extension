@@ -81,12 +81,23 @@ export async function getFrames(videoId: string, version: string): Promise<Featu
   return rec ? unpackFrames(rec.data) : [];
 }
 
+const ONSET_VERSION = "onsets-1";
+export const saveOnsets = (videoId: string, data: Float32Array) =>
+  tx("frames", "readwrite", (s) => s.put({ key: framesKey(videoId, ONSET_VERSION), videoId, version: ONSET_VERSION, data })).then(() => undefined);
+export async function getOnsets(videoId: string): Promise<Float32Array> {
+  const rec = await tx<{ data: Float32Array } | undefined>("frames", "readonly", (s) => s.get(framesKey(videoId, ONSET_VERSION)));
+  return rec ? rec.data : new Float32Array(0);
+}
+
 export async function exportAll(withFrames = true): Promise<ExportBundle> {
   const songs = await listSongs();
   const bundle: ExportBundle = { format: "worship-chord-companion", version: 1, songs, contis: await listContis() };
   if (withFrames) {
     bundle.frames = {};
+    bundle.onsets = {};
     for (const s of songs) {
+      const o = await getOnsets(s.videoId);
+      if (o.length) bundle.onsets[s.videoId] = Array.from(o);
       const f = await getFrames(s.videoId, FEATURE_VERSION);
       if (f.length) bundle.frames[s.videoId] = Array.from(packFrames(f));
     }
@@ -99,6 +110,8 @@ export async function importAll(data: ExportBundle): Promise<number> {
   for (const s of data.songs) {
     await saveSong(s);
     const packed = data.frames?.[s.videoId];
+    const on = data.onsets?.[s.videoId];
+    if (on?.length) await saveOnsets(s.videoId, Float32Array.from(on));
     if (packed?.length) await saveFrames(s.videoId, FEATURE_VERSION, unpackFrames(Float32Array.from(packed)));
   }
   for (const c of data.contis ?? []) await saveConti(c);

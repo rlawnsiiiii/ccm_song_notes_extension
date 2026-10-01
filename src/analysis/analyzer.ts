@@ -4,7 +4,7 @@ import { KeyAccumulator } from "./key";
 import { normalize } from "./chroma";
 import { viterbi } from "./smoothing";
 
-export const ANALYZER_VERSION = "0.3.0";
+export const ANALYZER_VERSION = "0.4.0";
 
 export interface AnalysisResult {
   key: KeyInfo | null;

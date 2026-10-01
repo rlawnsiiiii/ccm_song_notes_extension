@@ -53,3 +53,4 @@ details.song input, details.song textarea { font: inherit; color: inherit; backg
 .dots { display: inline-flex; gap: 3px; align-items: center; }
 .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--card); border: 1px solid var(--muted); }
 .dots i.on { background: var(--accent); border-color: var(--accent); }
+.tiny { padding: 0 5px; font-size: 11px; }

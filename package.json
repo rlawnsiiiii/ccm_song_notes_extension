@@ -1,6 +1,6 @@
 {
   "name": "worship-chord-companion",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Firefox extension that shows key, chords and song structure for worship videos on YouTube.",
