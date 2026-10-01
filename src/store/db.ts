@@ -1,5 +1,6 @@
 import type { FeatureFrame, SongRecord } from "../shared/types";
 import type { ExportBundle } from "../shared/messages";
+import { FEATURE_VERSION } from "../analysis/chroma";
 
 const DB_NAME = "wcc";
 const DB_VERSION = 1;
@@ -75,12 +76,25 @@ export async function getFrames(videoId: string, version: string): Promise<Featu
   return rec ? unpackFrames(rec.data) : [];
 }
 
-export async function exportAll(): Promise<ExportBundle> {
-  return { format: "worship-chord-companion", version: 1, songs: await listSongs() };
+export async function exportAll(withFrames = true): Promise<ExportBundle> {
+  const songs = await listSongs();
+  const bundle: ExportBundle = { format: "worship-chord-companion", version: 1, songs };
+  if (withFrames) {
+    bundle.frames = {};
+    for (const s of songs) {
+      const f = await getFrames(s.videoId, FEATURE_VERSION);
+      if (f.length) bundle.frames[s.videoId] = Array.from(packFrames(f));
+    }
+  }
+  return bundle;
 }
 
 export async function importAll(data: ExportBundle): Promise<number> {
   if (data?.format !== "worship-chord-companion" || !Array.isArray(data.songs)) throw new Error("Not a Worship Chord Companion backup");
-  for (const s of data.songs) await saveSong(s);
+  for (const s of data.songs) {
+    await saveSong(s);
+    const packed = data.frames?.[s.videoId];
+    if (packed?.length) await saveFrames(s.videoId, FEATURE_VERSION, unpackFrames(Float32Array.from(packed)));
+  }
   return data.songs.length;
 }

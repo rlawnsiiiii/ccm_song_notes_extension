@@ -336,9 +336,9 @@ Not legal advice. Check these before publishing anything.
 
 ## 15. Status
 
-- [ ] Phase 0 — Setup and audio spike
-- [ ] Phase 1 — Live key and chords (baseline)
-- [ ] Phase 2 — Test set and evaluation
+- [~] Phase 0 — Setup and audio spike (code done; needs manual Firefox check)
+- [~] Phase 1 — Live key and chords (baseline) (code done; needs manual Firefox check)
+- [~] Phase 2 — Test set and evaluation (tooling done; real test set to be collected)
 - [ ] Phase 3 — Analyze once, play along
 - [ ] Phase 4 — Song structure
 - [ ] Phase 5 — Korean CCM tuning

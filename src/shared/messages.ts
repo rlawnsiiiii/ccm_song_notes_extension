@@ -58,6 +58,8 @@ export interface ExportBundle {
   format: "worship-chord-companion";
   version: 1;
   songs: SongRecord[];
+  /** Packed feature frames per video id, so analysis can be re-run offline. */
+  frames?: Record<string, number[]>;
 }
 
 export const isToSidebar = (m: unknown): m is ToSidebar =>
