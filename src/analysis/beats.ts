@@ -3,7 +3,7 @@ import type { ChordEvent, FeatureFrame } from "../shared/types";
 export interface OnsetPoint { t: number; v: number }
 
 /** Onset strength per frame: how much the harmony (chroma) and loudness changed. */
-export function onsetEnvelope(frames: FeatureFrame[]): OnsetPoint[] {
+export function onsetEnvelope(frames: FeatureFrame[], harmW = 1, riseW = 1, compress = 0.5): OnsetPoint[] {
   const out: OnsetPoint[] = [];
   for (let i = 1; i < frames.length; i++) {
     const a = frames[i - 1]!, b = frames[i]!;
@@ -12,7 +12,7 @@ export function onsetEnvelope(frames: FeatureFrame[]): OnsetPoint[] {
     for (let k = 0; k < 12; k++) dot += a.chroma[k]! * b.chroma[k]!;
     const harmonic = Math.max(0, 1 - dot);
     const rise = Math.max(0, b.energy - a.energy) / (a.energy + 1e-4);
-    out.push({ t: b.t, v: harmonic + 0.3 * Math.min(2, rise) });
+    out.push({ t: b.t, v: Math.pow(harmonic, compress) * harmW + riseW * Math.min(2, rise) });
   }
   return out;
 }
@@ -40,7 +40,7 @@ function sampleAt(env: Float32Array, t: number): number {
 /** Log-gaussian prior around worship tempos; octave errors are common otherwise. */
 const tempoPrior = (bpm: number) => Math.exp(-0.5 * (Math.log2(bpm / 95) / 0.45) ** 2);
 
-export function estimateBeatGrid(env: OnsetPoint[], durationSec: number, beatsPerBar = 4): BeatGrid | null {
+export function estimateBeatGrid(env: OnsetPoint[], durationSec: number, beatsPerBar = 4, midWeight = 0.5): BeatGrid | null {
   if (env.length < 50) return null;
   const n = Math.ceil(durationSec / HOP) + 2;
   const arr = new Float32Array(n);
@@ -58,9 +58,12 @@ export function estimateBeatGrid(env: OnsetPoint[], durationSec: number, beatsPe
     if (nb < 8) continue;
     const prior = tempoPrior(bpm);
     for (let off = 0; off < period; off += 0.02) {
-      let s = 0;
-      for (let k = 0; k < nb; k++) s += sampleAt(sm, off + k * period);
-      const score = (s / nb) * prior;
+      let s = 0, mid = 0;
+      for (let k = 0; k < nb; k++) {
+        s += sampleAt(sm, off + k * period);
+        mid += sampleAt(sm, off + (k + 0.5) * period); // between beats: should be quiet
+      }
+      const score = Math.max(0, s / nb - midWeight * (mid / nb)) * prior;
       if (score > best.score) best = { score, bpm, offset: off };
     }
   }

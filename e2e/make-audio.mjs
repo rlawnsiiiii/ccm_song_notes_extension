@@ -8,6 +8,8 @@ const out = await build({
 });
 const { chordSamples, SR } = await import("data:text/javascript;base64," + Buffer.from(out.outputFiles[0].text).toString("base64"));
 
+let seed = 12345; // deterministic noise so the test is repeatable
+const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
 const BPM = 100, beat = 60 / BPM, bar = beat * 4;
 const prog = [[7, "maj"], [2, "maj"], [4, "min"], [0, "maj"]];
 const bars = 28; // ~67 s
@@ -22,7 +24,7 @@ for (let b = 0; b < bars; b++) {
 // percussion: noise bursts on every beat, stronger on the downbeat
 for (let k = 0; k < bars * 4; k++) {
   const s = Math.floor(k * beat * SR), amp = k % 4 === 0 ? 0.5 : 0.2;
-  for (let i = 0; i < 1500 && s + i < n; i++) pcm[s + i] += (Math.random() * 2 - 1) * amp * Math.exp(-i / 400);
+  for (let i = 0; i < 1500 && s + i < n; i++) pcm[s + i] += (rnd() * 2 - 1) * amp * Math.exp(-i / 400);
 }
 const buf = Buffer.alloc(44 + n * 2);
 buf.write("RIFF", 0); buf.writeUInt32LE(36 + n * 2, 4); buf.write("WAVEfmt ", 8);
