@@ -70,7 +70,7 @@ export function viterbi(obs: FrameObs[], opts: ViterbiOptions = {}): { states: S
         const st = states[i]!;
         e[i] = beta * (lookup.get(`${st.root}:${st.quality}`) ?? 0) + priors[i]!;
       }
-      e[0] = beta * 0.35; // "no chord" baseline
+      e[0] = beta * 0.2; // "no chord" baseline: only wins when nothing fits
     }
     emis.push(e);
   }
