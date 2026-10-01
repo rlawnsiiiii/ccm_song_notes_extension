@@ -1,0 +1,24 @@
+{
+  "name": "worship-chord-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Firefox extension that shows key, chords and song structure for worship videos on YouTube.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "web-ext lint --source-dir dist",
+    "run": "web-ext run --source-dir dist --start-url https://www.youtube.com",
+    "package": "npm run build && web-ext build --source-dir dist --artifacts-dir web-ext-artifacts --overwrite-dest",
+    "eval": "node scripts/eval.mjs"
+  },
+  "devDependencies": {
+    "@types/firefox-webext-browser": "^120.0.4",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9",
+    "web-ext": "^8.10.0"
+  }
+}

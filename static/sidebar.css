@@ -1,0 +1,26 @@
+:root { color-scheme: light dark; --bg: #fff; --fg: #1b1b1f; --muted: #6b6b76; --card: #f3f3f6; --accent: #3b6cf6; --warn: #d98a00; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1c1b22; --fg: #f2f2f5; --muted: #9a9aa6; --card: #2b2a33; --accent: #7aa2ff; --warn: #f0b429; } }
+body { margin: 0; padding: 10px; background: var(--bg); color: var(--fg); font: 13px system-ui, sans-serif; }
+.muted { color: var(--muted); }
+.title { font-weight: 600; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row { display: flex; gap: 8px; align-items: center; }
+button, select { font: inherit; color: inherit; background: var(--card); border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; }
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: #fff; }
+.now { display: flex; gap: 12px; align-items: flex-end; margin: 12px 0 8px; }
+.label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+.big { font-size: 44px; font-weight: 700; line-height: 1.05; }
+.mid { font-size: 24px; color: var(--muted); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 8px; }
+.meter { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+.meter > div { height: 100%; background: var(--accent); width: 0; }
+.chroma { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; height: 48px; margin: 6px 0; }
+.chroma > div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; font-size: 9px; }
+.chroma i { display: block; width: 100%; background: var(--accent); border-radius: 2px; min-height: 1px; }
+.controls { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; max-height: 45vh; overflow: auto; }
+.chord { padding: 6px 2px; text-align: center; font-weight: 600; }
+.chord.on { outline: 2px solid var(--accent); background: var(--accent); color: #fff; }
+.chord.weak { opacity: .65; border-style: dashed; border-color: var(--warn); }
+.chord.edited { border-color: var(--accent); }
+.foot { display: flex; gap: 6px; margin-top: 10px; }
