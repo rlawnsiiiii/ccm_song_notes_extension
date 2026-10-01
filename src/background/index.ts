@@ -1,7 +1,21 @@
 import * as db from "../store/db";
 import type { ToBackground } from "../shared/messages";
 
-browser.runtime.onMessage.addListener((raw: unknown) => {
+declare const __WCC_TEST__: boolean;
+
+const testLatest: Record<number, { status?: unknown; song?: unknown; version: number }> = {};
+
+browser.runtime.onMessage.addListener((raw: unknown, sender) => {
+  if (__WCC_TEST__) {
+    const t = raw as { type?: string; q?: any; id?: number; m?: unknown; tabId?: number };
+    if ((t?.type === "status" || t?.type === "song") && sender.tab?.id !== undefined) {
+      const e = (testLatest[sender.tab.id] ??= { version: 0 });
+      if (t.type === "status") e.status = t; else { e.song = t; e.version++; }
+    }
+    if (t?.type === "test:poll") return Promise.resolve(testLatest[t.tabId!] ?? { version: 0 });
+    if (t?.type === "test:tabs.query") return browser.tabs.query(t.q);
+    if (t?.type === "test:tabs.send") return browser.tabs.sendMessage(t.id!, t.m);
+  }
   const msg = raw as ToBackground;
   if (!msg || typeof msg.type !== "string" || !msg.type.startsWith("db:")) return undefined;
   switch (msg.type) {

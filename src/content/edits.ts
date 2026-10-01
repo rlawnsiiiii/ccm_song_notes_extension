@@ -31,6 +31,11 @@ export function applyEdit(rec: SongRecord, m: ToContent): boolean {
     case "setTranspose": rec.transpose = m.semitones; return true;
     case "setTitle": rec.title = m.title; if (m.artist !== undefined) rec.artist = m.artist; return true;
     case "setKey": rec.key = { tonic: m.tonic as any, mode: m.mode, confidence: 1 }; return true;
+    case "setLyricNudge": {
+      rec.lyricNudge = { ...(rec.lyricNudge ?? {}), [m.key]: m.chars };
+      if (m.chars === 0) delete rec.lyricNudge[m.key];
+      return true;
+    }
     default: return false;
   }
 }

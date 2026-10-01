@@ -13,6 +13,8 @@ if (test) {
   const m = JSON.parse(readFileSync("dist/manifest.json", "utf8"));
   m.content_scripts[0].matches.push("http://localhost/*");
   m.host_permissions.push("http://localhost/*");
+  // lets the test page embed the sidebar in an iframe (WebDriver cannot drive moz-extension:// tabs)
+  m.web_accessible_resources = [{ resources: ["sidebar.html", "sidebar.js", "sidebar.css"], matches: ["http://localhost/*"] }];
   writeFileSync("dist/manifest.json", JSON.stringify(m, null, 2));
 }
 

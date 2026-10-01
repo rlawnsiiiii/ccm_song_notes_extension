@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findStructure, mergeSections, type BarInfo } from "../src/analysis/structure";
+import { blockSim, findStructure, mergeSections, type BarInfo } from "../src/analysis/structure";
 
 const bar = (i: number, chords: string[], energy: number): BarInfo => ({ startSec: i * 2, endSec: i * 2 + 2, chords, energy });
 
@@ -58,5 +58,19 @@ describe("key changes", () => {
   it("reports nothing for a steady key", () => {
     const g: [number, any, number | undefined, number][] = [[7, "maj", undefined, 2], [2, "maj", undefined, 2], [4, "min", undefined, 2], [0, "maj", undefined, 2]];
     expect(detectKeyChanges(progressionFrames([...g, ...g, ...g, ...g]), { tonic: 7, mode: "major", confidence: 0.9 })).toEqual([]);
+  });
+});
+
+describe("lyrics help structure", () => {
+  it("joins blocks with the same lyrics even when heard chords differ", () => {
+    const mk = (i: number, chords: string[], lyric: string): BarInfo => ({ startSec: i * 2, endSec: i * 2 + 2, chords, energy: 0.05, lyric });
+    const bars: BarInfo[] = [];
+    const A = ["주님을 찬양해", "영원히 노래해", "나의 힘이 되신", "사랑의 하나님"];
+    for (let i = 0; i < 8; i++) bars.push(mk(i, [["0"], ["7"], ["2"], ["4m"]][i % 4]!, A[i % 4]!));
+    // same lyrics, one chord heard differently (e.g. sus/slash confusion)
+    for (let i = 8; i < 16; i++) bars.push(mk(i, [["0"], ["7"], ["5"], ["9m"]][i % 4]!, A[i % 4]!));
+    expect(blockSim(bars, 0, 8, 8)).toBeGreaterThan(0.69);
+    const noLyric = bars.map(({ lyric, ...r }) => r as BarInfo);
+    expect(blockSim(noLyric, 0, 8, 8)).toBeLessThan(0.7);
   });
 });

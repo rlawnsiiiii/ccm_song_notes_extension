@@ -100,7 +100,7 @@ export class SongSession {
     if (!rec.beats || rec.downbeat === undefined || !rec.tempoBpm || coverage < 0.85) return;
     const grid = { bpm: rec.tempoBpm, offset: rec.beats[0] ?? 0, beats: rec.beats, downbeat: rec.downbeat, beatsPerBar: rec.beatsPerBar ?? 4 };
     const bars = buildBars(rec.chords, grid, rec.durationSec);
-    const detected = findStructure(barInfos(bars, rec.chords, all));
+    const detected = findStructure(barInfos(bars, rec.chords, all, rec.lyrics));
     rec.sections = mergeSections(rec.sections, detected);
     rec.keyChanges = detectKeyChanges(all, rec.key);
   }

@@ -1,6 +1,7 @@
 import type { ChordEvent, FeatureFrame, KeyInfo, PitchClass, Section } from "../shared/types";
 import type { BarCell } from "./bars";
 import { KeyAccumulator } from "./key";
+import { textSimilarity, type LyricLine } from "../music/lyrics";
 
 /** What the structure finder needs to know about each bar. */
 export interface BarInfo {
@@ -9,9 +10,11 @@ export interface BarInfo {
   /** chord names, one per beat slot that starts a chord, e.g. ["G","D/F#"] (triad-level compare) */
   chords: string[];
   energy: number;
+  /** lyric text sung in this bar (from captions), if known */
+  lyric?: string;
 }
 
-export function barInfos(bars: BarCell[], chords: ChordEvent[], frames: FeatureFrame[]): BarInfo[] {
+export function barInfos(bars: BarCell[], chords: ChordEvent[], frames: FeatureFrame[], lyrics?: LyricLine[]): BarInfo[] {
   const sorted = [...frames].sort((a, b) => a.t - b.t);
   let fi = 0;
   return bars.map((b) => {
@@ -22,6 +25,7 @@ export function barInfos(bars: BarCell[], chords: ChordEvent[], frames: FeatureF
       startSec: b.startSec, endSec: b.endSec,
       chords: b.chords.map((c) => triadKey(chords[c.eventIndex]!)),
       energy: n ? e / n : 0,
+      ...(lyrics ? { lyric: lyrics.filter((l) => l.startSec >= b.startSec - 0.3 && l.startSec < b.endSec - 0.3).map((l) => l.text).join(" ") } : {}),
     };
   });
 }
@@ -46,13 +50,21 @@ function barSim(a: BarInfo, b: BarInfo): number {
 }
 
 export function blockSim(bars: BarInfo[], i: number, j: number, len: number): number {
-  let s = 0, n = 0;
+  let s = 0, n = 0, la = "", lb = "";
   for (let k = 0; k < len; k++) {
     const a = bars[i + k], b = bars[j + k];
     if (!a || !b) continue;
     s += barSim(a, b); n++;
+    la += " " + (a.lyric ?? ""); lb += " " + (b.lyric ?? "");
   }
-  return n === 0 ? 0 : s / n;
+  const chordSim = n === 0 ? 0 : s / n;
+  // Repeated lyrics (a chorus sung again) join blocks even if the chords were heard a bit differently.
+  // Different lyrics never split blocks: verse 1 and verse 2 share harmony and stay one group.
+  if (la.trim().length >= 8 && lb.trim().length >= 8) {
+    const ls = textSimilarity(la, lb);
+    if (ls >= 0.7) return Math.max(chordSim, ls);
+  }
+  return chordSim;
 }
 
 interface Block { start: number; len: number; group: number }
