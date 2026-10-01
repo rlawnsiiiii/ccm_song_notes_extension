@@ -1,6 +1,8 @@
 import type { ChordEvent, FeatureFrame, KeyInfo, SongRecord } from "../shared/types";
 import { ANALYZER_VERSION, analyzeFrames } from "./analyzer";
 import { mergeChords } from "./merge";
+import { buildBars } from "./bars";
+import { barInfos, detectKeyChanges, findStructure, mergeSections } from "./structure";
 import { estimateBeatGrid, onsetEnvelope, snapChords } from "./beats";
 
 export const HOP_SEC = 0.1;
@@ -85,8 +87,22 @@ export class SongSession {
     if (this.record.beats) detected = snapChords(detected, this.record.beats);
     this.record.chords = mergeChords(this.record.chords, detected);
     this.record.analyzedRanges = ranges;
+    this.updateStructure(all, ranges);
     this.record.analyzerVersion = ANALYZER_VERSION;
     this.record.updatedAt = new Date().toISOString();
+  }
+
+  /** Sections and key changes need a (nearly) complete pass plus a beat grid. */
+  private updateStructure(all: FeatureFrame[], ranges: [number, number][]): void {
+    const rec = this.record;
+    const heard = ranges.reduce((s, r) => s + r[1] - r[0], 0);
+    const coverage = rec.durationSec > 0 ? heard / rec.durationSec : 0;
+    if (!rec.beats || rec.downbeat === undefined || !rec.tempoBpm || coverage < 0.85) return;
+    const grid = { bpm: rec.tempoBpm, offset: rec.beats[0] ?? 0, beats: rec.beats, downbeat: rec.downbeat, beatsPerBar: rec.beatsPerBar ?? 4 };
+    const bars = buildBars(rec.chords, grid, rec.durationSec);
+    const detected = findStructure(barInfos(bars, rec.chords, all));
+    rec.sections = mergeSections(rec.sections, detected);
+    rec.keyChanges = detectKeyChanges(all, rec.key);
   }
 
   /** Quick estimate of the chord right now from the most recent frames (low lag). */
