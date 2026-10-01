@@ -1,22 +1,55 @@
 {
   "manifest_version": 3,
   "name": "Worship Chord Companion",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Shows key, chords and song structure for worship videos on YouTube. Everything runs locally.",
   "browser_specific_settings": {
-    "gecko": { "id": "worship-chord-companion@local", "strict_min_version": "115.0",
-      "data_collection_permissions": { "required": ["none"] } }
+    "gecko": {
+      "id": "worship-chord-companion@rlawnsiiiii",
+      "strict_min_version": "115.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
   },
-  "permissions": ["storage", "unlimitedStorage"],
-  "host_permissions": ["*://www.youtube.com/*"],
-  "background": { "scripts": ["background.js"] },
+  "permissions": [
+    "storage",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "*://www.youtube.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
   "content_scripts": [
-    { "matches": ["*://www.youtube.com/*"], "js": ["content.js"], "run_at": "document_idle" }
+    {
+      "matches": [
+        "*://www.youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
   ],
   "sidebar_action": {
     "default_title": "Chords",
     "default_panel": "sidebar.html",
-    "open_at_install": false
+    "open_at_install": false,
+    "default_icon": "icon.svg"
   },
-  "action": { "default_title": "Toggle chord sidebar" }
+  "action": {
+    "default_title": "Toggle chord sidebar",
+    "default_icon": "icon.svg"
+  },
+  "icons": {
+    "48": "icon.svg",
+    "96": "icon.svg"
+  },
+  "homepage_url": "https://github.com/rlawnsiiiii/ccm_song_notes_extension"
 }

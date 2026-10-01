@@ -19,6 +19,11 @@ let record: SongRecord | null = null;
 
 const $app = document.getElementById("app")!;
 
+/** Replaces the children of `el` with parsed HTML (all dynamic values are escaped with esc() by the callers). */
+function setHtml(el: Element, html: string): void {
+  el.replaceChildren(...new DOMParser().parseFromString(html, "text/html").body.childNodes);
+}
+
 declare const __WCC_TEST__: boolean;
 
 /**
@@ -101,10 +106,10 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 // ---- rendering ----
 function render(): void {
   if (tabId === null) {
-    $app.innerHTML = `<p class="muted">Open a YouTube video in the active tab.</p>`;
+    setHtml($app, `<p class="muted">Open a YouTube video in the active tab.</p>`);
     return;
   }
-  $app.innerHTML = `
+  setHtml($app, `
     <header>
       <div class="title" id="title">${esc(record?.title ?? status?.title ?? "")}</div>
       <div class="row">
@@ -149,7 +154,7 @@ function render(): void {
       <button id="import">Import</button>
       <button id="conti">콘티</button>
       <input type="file" id="file" accept="application/json" hidden>
-    </section>`;
+    </section>`);
   bind();
   updateLive();
   renderChart();
@@ -225,7 +230,7 @@ function renderLyrics(el: HTMLElement): void {
   const lines = record?.lyrics ?? [];
   const chords = record?.chords ?? [];
   if (lines.length === 0) {
-    el.innerHTML = `<p class="muted">No Korean captions found for this video.</p><button id="refetch">Look again</button>`;
+    setHtml(el, `<p class="muted">No Korean captions found for this video.</p><button id="refetch">Look again</button>`);
     document.getElementById("refetch")!.onclick = () => void send({ type: "fetchLyrics" });
     return;
   }
@@ -246,8 +251,8 @@ function renderLyrics(el: HTMLElement): void {
     return `<div class="lyr" data-li="${li}" data-start="${l.startSec}"><div class="ltext">${html}</div></div>`;
   }).join("");
   const selChord = selected !== null ? chords[selected] : undefined;
-  el.innerHTML = `${note}<div class="lyrics">${rows}</div>${selChord ? `<div class="editor"><div class="row"><b>${esc(display(selChord, record))}</b>
-    <button id="ln-l">◀</button><button id="ln-r">▶</button><button id="ln-0">reset</button></div></div>` : ""}`;
+  setHtml(el, `${note}<div class="lyrics">${rows}</div>${selChord ? `<div class="editor"><div class="row"><b>${esc(display(selChord, record))}</b>
+    <button id="ln-l">◀</button><button id="ln-r">▶</button><button id="ln-0">reset</button></div></div>` : ""}`);
   el.querySelectorAll<HTMLElement>(".lyr").forEach((d) => { d.onclick = (e) => { if (!(e.target as HTMLElement).closest(".lc")) void send({ type: "seek", sec: +d.dataset.start! }); }; });
   el.querySelectorAll<HTMLButtonElement>(".lc").forEach((b) => { b.onclick = () => { const i = +b.dataset.i!; selected = selected === i ? null : i; renderChart(); }; });
   if (selChord) {
@@ -279,7 +284,7 @@ function renderChart(): void {
   if (!el) return;
   if (prefs.view === "lyrics") { renderLyrics(el); return; }
   const chords = record?.chords ?? [];
-  if (chords.length === 0) { el.innerHTML = `<p class="muted">Play the video with the sidebar connected to build the chart.</p>`; return; }
+  if (chords.length === 0) { setHtml(el, `<p class="muted">Play the video with the sidebar connected to build the chart.</p>`); return; }
   let body: string;
   if (record?.beats && record.downbeat !== undefined && record.tempoBpm) {
     const bars = buildBars(chords, { bpm: record.tempoBpm, offset: record.beats[0] ?? 0, beats: record.beats, downbeat: record.downbeat, beatsPerBar: record.beatsPerBar ?? 4 }, record.durationSec);
@@ -308,7 +313,7 @@ function renderChart(): void {
     const t = mod12(k.tonic + record!.transpose);
     return `전조 → ${noteName(t, prefersFlats(t, k.mode))}${k.mode === "minor" ? "m" : ""} @ ${fmtTime(k.atSec)}`;
   }).join(" · ");
-  el.innerHTML = `${record?.tempoBpm ? `<div class="muted">${record.tempoBpm} BPM${kc ? " · " + esc(kc) : ""}</div>` : ""}${body}<div id="editor"></div>`;
+  setHtml(el, `${record?.tempoBpm ? `<div class="muted">${record.tempoBpm} BPM${kc ? " · " + esc(kc) : ""}</div>` : ""}${body}<div id="editor"></div>`);
   el.querySelectorAll<HTMLButtonElement>(".chord").forEach((b) => {
     b.onclick = () => {
       const i = +b.dataset.i!;
@@ -358,7 +363,7 @@ function bindSections(): void {
 function renderEditor(): void {
   const el = document.getElementById("editor");
   const c = selected !== null ? record?.chords[selected] : undefined;
-  if (!el || !c || selected === null) { if (el) el.innerHTML = ""; return; }
+  if (!el || !c || selected === null) { if (el) setHtml(el, ""); return; }
   const idx = selected;
   const key = record!.key;
   const flats = prefersFlats(mod12(key.tonic + record!.transpose), key.mode);
@@ -368,13 +373,13 @@ function renderEditor(): void {
   const quals = QUALITIES.map((q) => `<option value="${q}" ${c.quality === q ? "selected" : ""}>${QUALITY_SUFFIX[q] || "maj"}</option>`).join("");
   const basses = `<option value="-1">–</option>` +
     Array.from({ length: 12 }, (_, pc) => `<option value="${pc}" ${c.bass === pc ? "selected" : ""}>${note(pc)}</option>`).join("");
-  el.innerHTML = `<div class="editor">
+  setHtml(el, `<div class="editor">
     <div class="row"><b>${fmtTime(c.startSec)}–${fmtTime(c.endSec)}</b>
       <select id="e-root">${roots}</select><select id="e-q">${quals}</select> / <select id="e-bass">${basses}</select></div>
     <div class="row">
       <button id="e-split">Split here</button><button id="e-merge">Merge next</button>
       <button id="e-la">Loop from here</button><button id="e-lb">Loop to here end</button><button id="e-lc">Clear loop</button>
-    </div></div>`;
+    </div></div>`);
   const apply = () => {
     const root = +(document.getElementById("e-root") as HTMLSelectElement).value;
     const q = (document.getElementById("e-q") as HTMLSelectElement).value as ChordQuality;

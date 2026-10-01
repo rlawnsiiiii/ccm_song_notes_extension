@@ -57,7 +57,7 @@ opts.setPreference("media.autoplay.default", 0);
 opts.setPreference("media.autoplay.blocking_policy", 0);
 opts.setPreference("media.volume_scale", "0.0"); // keep the test silent
 opts.setPreference("xpinstall.signatures.required", false);
-opts.setPreference("extensions.webextensions.uuids", JSON.stringify({ "worship-chord-companion@local": EXT_UUID }));
+opts.setPreference("extensions.webextensions.uuids", JSON.stringify({ "worship-chord-companion@rlawnsiiiii": EXT_UUID }));
 opts.setBinary("/Applications/Firefox.app/Contents/MacOS/firefox");
 const service = new firefox.ServiceBuilder(".cache/geckodriver");
 const driver = await new Builder().forBrowser("firefox").setFirefoxOptions(opts).setFirefoxService(service).build();
