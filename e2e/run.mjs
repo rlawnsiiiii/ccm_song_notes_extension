@@ -161,10 +161,29 @@ try {
   await driver.wait(async () => (await count("#e-root")) === 1, 5000, "editor did not open").catch((e) => results.push(["FAIL", e.message]));
   await driver.executeScript("const r = document.getElementById('e-root'); r.value = '5'; r.dispatchEvent(new Event('change'))");
   await sleep(1200);
+  // import a typed chart: wrong one first (should be refused), then the right one with {order:}
+  await driver.executeScript("document.getElementById('songpanel').open = true");
+  const fill = (t) => driver.executeScript("const a = document.getElementById('f-chart'); a.value = arguments[0]; document.getElementById('f-import').click()", t);
+  await fill("{key: F#}\n{section: A}\n| F# | B | C# | G#m |");
+  await driver.wait(async () => /chart does not look/.test((await text("#f-msg")) ?? ""), 8000, "bad chart not refused").catch((e) => results.push(["FAIL", e.message]));
+  await fill("{key: G}\n{order: A A A A A A A}\n{section: A}\n| G | D | Em | C |");
+  await driver.wait(async () => /Lined up/.test((await text("#f-msg")) ?? ""), 8000, "import never confirmed").catch((e) => results.push(["FAIL", e.message]));
+  const importMsg = await text("#f-msg");
+  await sleep(1000);
   await driver.switchTo().window(videoWindow);
-  const s4 = await state();
-  check("editing a chord in the sidebar reaches the content script", () => assert.ok(s4.record.chords.some((c) => c.source === "user" && c.root === 5), "no user chord with root F"));
+  const s5 = await state();
+  const imported = s5.record.chords.filter((c) => c.source === "imported");
+  check("import lines the chart up", () => assert.ok(/Lined up \d+ of 28/.test(importMsg), `message: ${importMsg}`));
+  check("imported chords follow the typed chart", () => {
+    // by time: the chord sounding at the middle of each imported event must be the true one
+    const ok = imported.filter((c) => symName(c) === expectProg[Math.floor((c.startSec + c.endSec) / 2 / 2.4) % 4]).length;
+    assert.ok(imported.length >= 20 && ok / imported.length > 0.85, `${imported.length} imported, ${ok} match: ${imported.slice(0, 8).map(symName).join(" ")}`);
+  });
+  check("user edit kept over the import", () => assert.ok(s5.record.chords.some((c) => c.source === "user" && c.root === 5)));
+  check("typed key locked, sections imported", () => assert.ok(s5.record.key.confidence === 1 && s5.record.sections.some((x) => x.source === "imported"), JSON.stringify(s5.record.key)));
   await driver.switchTo().window((await driver.getAllWindowHandles()).find((h) => h !== videoWindow));
+  const s4 = s5;
+  check("editing a chord in the sidebar reaches the content script", () => assert.ok(s4.record.chords.some((c) => c.source === "user" && c.root === 5), "no user chord with root F"));
   await driver.close();
   await driver.switchTo().window(videoWindow);
 

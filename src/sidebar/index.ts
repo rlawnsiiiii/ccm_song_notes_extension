@@ -3,6 +3,7 @@ import { isToSidebar } from "../shared/messages";
 import type { ChordEvent, ChordQuality, PitchClass, SongRecord } from "../shared/types";
 import { buildBars } from "../analysis/bars";
 import { placeChords } from "../music/lyrics";
+import { searchUrls } from "../music/title";
 import { chordName, chordNumber, prefersFlats, noteName, mod12, simplifyQuality, QUALITY_SUFFIX } from "../music/theory";
 
 const QUALITIES: ChordQuality[] = ["maj", "min", "7", "maj7", "m7", "sus4", "sus2", "add9", "dim", "aug"];
@@ -132,6 +133,14 @@ function render(): void {
       <label>speed <select id="rate">${[0.5, 0.75, 0.9, 1, 1.25].map((r) => `<option value="${r}">${r}×</option>`).join("")}</select></label>
       <span id="loopinfo" class="muted"></span>
     </section>
+    <details class="song" id="songpanel">
+      <summary>Song info · reference · import chart</summary>
+      <div class="row"><input id="f-title" placeholder="title" value="${esc(record?.title ?? "")}"><input id="f-artist" placeholder="artist" value="${esc(record?.artist ?? "")}"></div>
+      <div class="row" id="searches">${searchUrls(record?.title ?? "", record?.artist).map((u) => `<button class="search" data-url="${esc(u.url)}">${esc(u.label)} ↗</button>`).join("")}</div>
+      <p class="muted">Opens a web search in a new tab. Nothing is downloaded or copied automatically.</p>
+      <textarea id="f-chart" rows="6" placeholder="Paste a chart you already have (ChordPro or bars):&#10;{key: G}&#10;{order: 전주 1절 후렴 1절 후렴}&#10;{section: 전주}&#10;| G | D/F# | Em7 | C |"></textarea>
+      <div class="row"><button id="f-import">Import &amp; line up</button><span id="f-msg" class="muted"></span></div>
+    </details>
     <section class="tabs"><button id="tab-chart" class="${prefs.view === 'chart' ? 'on' : ''}">Chart</button><button id="tab-lyrics" class="${prefs.view === 'lyrics' ? 'on' : ''}">Lyrics</button></section>
     <section id="chart"></section>
     <section class="foot">
@@ -153,6 +162,17 @@ function bind(): void {
   ($("simplify") as HTMLInputElement).onchange = (e) => { prefs.simplify = (e.target as HTMLInputElement).checked; savePrefs(); updateLive(); renderChart(); };
   ($("rate") as HTMLSelectElement).value = String(status?.rate ?? 1);
   ($("rate") as HTMLSelectElement).onchange = (e) => void send({ type: "setRate", rate: +(e.target as HTMLSelectElement).value });
+  const saveInfo = () => void send({ type: "setTitle", title: ($("f-title") as HTMLInputElement).value, artist: ($("f-artist") as HTMLInputElement).value });
+  $("f-title").onchange = saveInfo;
+  $("f-artist").onchange = saveInfo;
+  document.querySelectorAll<HTMLButtonElement>(".search").forEach((b) => { b.onclick = () => void browser.tabs.create({ url: b.dataset.url! }); });
+  $("f-import").onclick = async () => {
+    const msg = $("f-msg");
+    msg.textContent = "…";
+    const r = await send({ type: "importChart", text: ($("f-chart") as HTMLTextAreaElement).value });
+    msg.textContent = r?.importResult?.message ?? "Could not reach the page.";
+    msg.className = r?.importResult?.ok ? "ok" : "warn";
+  };
   $("tab-chart").onclick = () => { prefs.view = "chart"; savePrefs(); render(); };
   $("tab-lyrics").onclick = () => { prefs.view = "lyrics"; savePrefs(); render(); };
   $("reanalyze").onclick = () => void send({ type: "reanalyze" });

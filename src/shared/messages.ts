@@ -19,6 +19,8 @@ export interface StatusMsg {
   key: KeyInfo | null;
   loop: [number, number] | null;
   known: boolean; // a saved analysis was loaded
+  /** only on the reply to importChart */
+  importResult?: { ok: boolean; message: string };
 }
 
 export interface SongMsg { type: "song"; record: SongRecord | null }
@@ -40,6 +42,7 @@ export type ToContent =
   | { type: "setTitle"; title: string; artist?: string }
   | { type: "setKey"; tonic: number; mode: "major" | "minor" }
   | { type: "fetchLyrics" }
+  | { type: "importChart"; text: string }
   | { type: "setLyricNudge"; key: string; chars: number }
   | { type: "reanalyze" }
   | { type: "resetAnalysis" }

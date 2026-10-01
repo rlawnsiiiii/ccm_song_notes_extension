@@ -8,7 +8,7 @@ import type { StatusMsg, SongMsg, ToBackground, ToContent } from "../shared/mess
 import type { SongRecord } from "../shared/types";
 import { AudioTap, TAP_FFT } from "./audio-tap";
 import { getTitle, getVideoElement, getVideoId, isAdPlaying, watchNavigation } from "./youtube";
-import { applyEdit } from "./edits";
+import { applyEdit, importChart } from "./edits";
 import { fetchKoreanCaptions } from "./captions";
 
 declare const __WCC_TEST__: boolean;
@@ -187,6 +187,16 @@ browser.runtime.onMessage.addListener((raw: unknown) => {
     case "seek": if (video) video.currentTime = m.sec; break;
     case "setRate": if (video) video.playbackRate = Math.max(0.25, Math.min(2, m.rate)); break;
     case "setLoop": loop = m.range; break;
+    case "importChart": {
+      if (!session) return Promise.resolve({ ...status(), importResult: { ok: false, message: "No song loaded." } });
+      const r = importChart(session.record, m.text);
+      if (r.ok) {
+        session.record.updatedAt = new Date().toISOString();
+        toSidebar({ type: "song", record: session.record });
+        void bg({ type: "db:saveSong", record: session.record });
+      }
+      return Promise.resolve({ ...status(), importResult: r });
+    }
     case "fetchLyrics": { const id = getVideoId(); if (id && session) { delete session.record.lyrics; void loadLyrics(id, 2); } break; }
     case "reanalyze": if (session) { session.reanalyze(); void persist(true); } break;
     case "resetAnalysis":
