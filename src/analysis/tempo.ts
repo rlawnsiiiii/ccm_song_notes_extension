@@ -26,7 +26,7 @@ export function estimateTempo(env: Float32Array, hop = ONSET_HOP_SEC, opts: Temp
   const minBpm = opts.minBpm ?? 55, maxBpm = opts.maxBpm ?? 180;
   // defaults chosen with scripts/tempo-sweep.mjs on synthetic songs (see docs/eval-log.md)
   const midW = opts.midWeight ?? 0.6, acfW = opts.acfWeight ?? 0;
-  const sigmaOct = opts.prior ?? 1.0, centre = opts.centre ?? 110;
+  const sigmaOct = opts.prior ?? 1.0, centre = opts.centre ?? 100;
   const n = env.length;
   if (n * hop < 6) return null;
   // light smoothing (±2 hops) so slightly early/late onsets still count as hits

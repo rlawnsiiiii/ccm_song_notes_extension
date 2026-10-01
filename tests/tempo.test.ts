@@ -32,6 +32,10 @@ describe("tempo on synthetic bands with known tempo", () => {
     { spec: { bpm: 80, style: "acoustic", seed: 2, swing: 0.15 } },
     { spec: { bpm: 66, style: "ballad", seed: 1 } },
     { spec: { bpm: 100, style: "rock", seed: 3, melody: 1.5, swing: 0.08 } },
+    { spec: { bpm: 76, style: "ccm", seed: 1 } },        // piano arpeggio + syncopated kick
+    { spec: { bpm: 92, style: "ccm", seed: 2, swing: 0.1 } },
+    { spec: { bpm: 112, style: "ccm", seed: 3 } },       // sustained piano chords
+    { spec: { bpm: 60, style: "ccm68", seed: 1, beatsPerBar: 6 } },
   ];
   it.each(cases.map((c) => [`${c.spec.style} ${c.spec.bpm}`, c.spec] as const))("%s BPM", (_n, spec) => {
     const { pcm, truth } = makeSong({ ...spec, seconds: 30 });

@@ -5,7 +5,7 @@
  */
 export const SR = 44100;
 
-export type Style = "rock" | "ballad" | "pad-only" | "acoustic";
+export type Style = "rock" | "ballad" | "pad-only" | "acoustic" | "ccm" | "ccm68";
 export interface SongSpec {
   bpm: number;          // beats per minute, quarter-note (or dotted quarter in 6/8) feel
   style: Style;
@@ -96,6 +96,37 @@ export function makeSong(spec: SongSpec): { pcm: Float32Array; truth: SongTruth 
       if (onBeat && beatIdx % 2 === 0) notes.forEach((pc) => add(tStart, beatSec * 1.8, pluck(hz(midiOf(pc, 60)), 1.0), 0.07));
     }
     // pad-only has no per-pulse events
+  }
+  if (spec.style === "ccm" || spec.style === "ccm68") {
+    // Korean-CCM-like band: piano + bass + drums, syncopated kick, snare on 2/4 (or 6/8 backbeat), hats on eighths
+    const six = spec.style === "ccm68";
+    const eighth = six ? beatSec / 3 : beatSec / 2;
+    const perBar = six ? 6 : 8;
+    const total = Math.ceil((seconds - offset) / eighth);
+    const var_ = (spec.seed ?? 1) % 3;
+    const kicks = six ? [0, 3] : (spec.seed ?? 1) % 2 === 0 ? [0, 3, 4, 7] : [0, 4];
+    const snares = six ? [3] : [2, 6];
+    const basses = six ? [0, 3] : (spec.seed ?? 1) % 2 === 0 ? [0, 3, 4, 6] : [0, 4];
+    for (let e = 0; e < total; e++) {
+      const ei = e % perBar;
+      const t = offset + e * eighth + (!six && ei % 2 === 1 ? swing * eighth * 0.5 : 0);
+      const notes = chordNotes(t);
+      const root = chordRoot(t);
+      // drums
+      add(t, 0.07, (x) => noise() * Math.exp(-x / 0.011), ei % (six ? 3 : 2) === 0 ? 0.13 : 0.07); // hat, accented on the beat
+      if (kicks.includes(ei)) add(t, 0.28, (x) => Math.sin(2 * Math.PI * (48 + 100 * Math.exp(-x / 0.028)) * x) * Math.exp(-x / 0.1), 0.65);
+      if (snares.includes(ei)) add(t, 0.2, (x) => (noise() * 0.75 + 0.45 * Math.sin(2 * Math.PI * 185 * x)) * Math.exp(-x / 0.055), 0.4);
+      // bass
+      if (basses.includes(ei)) add(t, eighth * 1.8, pluck(hz(midiOf(root, 36)), 0.4), 0.5);
+      // piano
+      const strike = (pc: number, base: number, g: number, dec = 1.1) => {
+        const f = hz(midiOf(pc, base));
+        add(t, dec * 3, (x) => (Math.sin(2 * Math.PI * f * x) + 0.5 * Math.sin(2 * Math.PI * 2 * f * x) + 0.25 * Math.sin(2 * Math.PI * 3.01 * f * x)) * Math.exp(-x / dec) * Math.min(1, x / 0.003), g);
+      };
+      if (var_ === 0) { const k = [0, 1, 2, 1][ei % 4]!; strike(notes[k]!, 60, 0.13); if (ei === 0 || ei === (six ? 3 : 4)) strike(notes[0]!, 48, 0.1); }
+      else if (var_ === 1) { if (ei % 2 === 0) notes.forEach((pc, k) => strike(pc, 55 + (k === 2 ? 12 : 0), 0.08, 0.7)); }
+      else { if (ei === 0 || ei === (six ? 3 : 4)) notes.forEach((pc) => strike(pc, 57, 0.09, 1.6)); }
+    }
   }
   // pads (all styles except rock and acoustic): slow attack, sustained per bar, no onsets
   if (spec.style === "ballad" || spec.style === "pad-only") {
