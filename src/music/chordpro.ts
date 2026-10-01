@@ -1,5 +1,5 @@
 import type { ChordEvent, SongRecord } from "../shared/types";
-import { chordName, parseChord, noteName, parseNote, prefersFlats, mod12, type ChordSym } from "./theory";
+import { chordName, chordNumber, parseChord, noteName, parseNote, prefersFlats, mod12, type ChordSym } from "./theory";
 import type { Mode, PitchClass } from "../shared/types";
 
 /**
@@ -87,7 +87,8 @@ export function toChordPro(rec: SongRecord, opts: { transpose?: number; numbers?
   if (rec.artist) lines.push(`{artist: ${rec.artist}}`);
   lines.push(`{key: ${noteName(rec.key.tonic + tr, flats)}${rec.key.mode === "minor" ? "m" : ""}}`);
   lines.push(`{video: ${rec.videoId}}`);
-  const sym = (c: ChordEvent) => chordName(c, flats, tr);
+  if (rec.notes) lines.push(`{comment: ${rec.notes}}`);
+  const sym = (c: ChordEvent) => (opts.numbers ? chordNumber(c, rec.key.tonic, rec.key.mode) : chordName(c, flats, tr));
   const emit = (chords: ChordEvent[]) => {
     const d = chords.filter((c, i) => i === 0 || sym(c) !== sym(chords[i - 1]!));
     for (let i = 0; i < d.length; i += 4) lines.push("| " + d.slice(i, i + 4).map(sym).join(" | ") + " |");

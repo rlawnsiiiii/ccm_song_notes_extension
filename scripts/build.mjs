@@ -14,7 +14,7 @@ if (test) {
   m.content_scripts[0].matches.push("http://localhost/*");
   m.host_permissions.push("http://localhost/*");
   // lets the test page embed the sidebar in an iframe (WebDriver cannot drive moz-extension:// tabs)
-  m.web_accessible_resources = [{ resources: ["sidebar.html", "sidebar.js", "sidebar.css"], matches: ["http://localhost/*"] }];
+  m.web_accessible_resources = [{ resources: ["sidebar.html", "sidebar.js", "sidebar.css", "conti.html", "conti.js", "conti.css"], matches: ["http://localhost/*"] }];
   writeFileSync("dist/manifest.json", JSON.stringify(m, null, 2));
 }
 
@@ -23,6 +23,7 @@ const opts = {
     content: "src/content/index.ts",
     background: "src/background/index.ts",
     sidebar: "src/sidebar/index.ts",
+    conti: "src/conti/index.ts",
   },
   bundle: true,
   outdir: "dist",

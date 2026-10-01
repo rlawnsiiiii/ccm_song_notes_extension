@@ -344,7 +344,7 @@ Not legal advice. Check these before publishing anything.
 - [~] Phase 5 — Korean CCM tuning (vocabulary, key and progression priors, numbers, transpose, simplify done; needs real-song scoring)
 - [x] Phase 6 — Korean lyrics view (verified in Firefox e2e with fake captions; real subtitle tracks still to try)
 - [x] Phase 7 — Reference lookup and chart import (title cleanup, search links, ChordPro paste, alignment; e2e verified)
-- [ ] Phase 8 — 콘티 builder and export
+- [x] Phase 8 — 콘티 builder and export (e2e verified; print layout not visually checked on paper)
 
 | 2026-10-01 | Own chroma/key/chord code instead of Meyda/Essentia.js | No licence issue (Essentia is AGPL), runs identically in Node for evaluation, small |
 | 2026-10-01 | Content script owns the live SongSession; background owns IndexedDB; sidebar sends edit commands | One writer per piece of state; sidebar can be closed without losing analysis |

@@ -25,6 +25,9 @@ browser.runtime.onMessage.addListener((raw: unknown, sender) => {
     case "db:deleteSong": return db.deleteSong(msg.videoId).then(() => ({ ok: true }));
     case "db:saveFrames": return db.saveFrames(msg.videoId, msg.version, db.unpackFrames(Float32Array.from(msg.data))).then(() => ({ ok: true }));
     case "db:getFrames": return db.getFrames(msg.videoId, msg.version).then((frames) => ({ data: Array.from(db.packFrames(frames)) }));
+    case "db:listContis": return db.listContis().then((contis) => ({ contis }));
+    case "db:saveConti": return db.saveConti(msg.conti).then(() => ({ ok: true }));
+    case "db:deleteConti": return db.deleteConti(msg.id).then(() => ({ ok: true }));
     case "db:exportAll": return db.exportAll().then((bundle) => ({ bundle }));
     case "db:importAll": return db.importAll(msg.data).then((count) => ({ count }));
   }

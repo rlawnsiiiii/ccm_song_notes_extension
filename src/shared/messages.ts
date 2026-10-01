@@ -1,4 +1,4 @@
-import type { ChordEvent, KeyInfo, Section, SongRecord } from "./types";
+import type { ChordEvent, Conti, KeyInfo, Section, SongRecord } from "./types";
 
 /** Periodic snapshot from the content script (about 4 per second). */
 export interface StatusMsg {
@@ -56,6 +56,9 @@ export type ToBackground =
   | { type: "db:deleteSong"; videoId: string }
   | { type: "db:saveFrames"; videoId: string; version: string; data: number[] }
   | { type: "db:getFrames"; videoId: string; version: string }
+  | { type: "db:listContis" }
+  | { type: "db:saveConti"; conti: Conti }
+  | { type: "db:deleteConti"; id: string }
   | { type: "db:exportAll" }
   | { type: "db:importAll"; data: ExportBundle };
 
@@ -63,6 +66,7 @@ export interface ExportBundle {
   format: "worship-chord-companion";
   version: 1;
   songs: SongRecord[];
+  contis?: Conti[];
   /** Packed feature frames per video id, so analysis can be re-run offline. */
   frames?: Record<string, number[]>;
 }

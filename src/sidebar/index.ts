@@ -147,6 +147,7 @@ function render(): void {
       <button id="reanalyze">Re-analyze</button>
       <button id="export">Export</button>
       <button id="import">Import</button>
+      <button id="conti">콘티</button>
       <input type="file" id="file" accept="application/json" hidden>
     </section>`;
   bind();
@@ -178,6 +179,7 @@ function bind(): void {
   $("reanalyze").onclick = () => void send({ type: "reanalyze" });
   $("export").onclick = () => void exportBackup();
   $("import").onclick = () => $("file").click();
+  $("conti").onclick = () => void browser.tabs.create({ url: browser.runtime.getURL("conti.html") });
   ($("file") as HTMLInputElement).onchange = (e) => void importBackup((e.target as HTMLInputElement).files?.[0]);
 }
 
