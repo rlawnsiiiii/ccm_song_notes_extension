@@ -1,6 +1,6 @@
 import type { ChordQuality, KeyInfo, PitchClass } from "../shared/types";
 import { mod12 } from "../music/theory";
-import { DEFAULT_QUALITIES, scoreChords } from "./chords";
+import { DEFAULT_QUALITIES, scoreOne } from "./chords";
 
 /** A Viterbi state: a chord, or "no chord" (index 0). */
 export interface State { root: PitchClass | null; quality: ChordQuality | null }
@@ -104,7 +104,6 @@ export function viterbi(obs: FrameObs[], opts: ViterbiOptions = {}): { states: S
   const priors = states.map((s) => keyPrior(s, opts.key ?? null));
   const boosts = opts.priors === false ? states.map(() => [] as [number, number][]) : transitionBoosts(states, opts.key ?? null);
   const silence = opts.noChordEnergy ?? 0.003;
-  const qualities = Array.from(new Set(states.filter((s) => s.quality).map((s) => s.quality!))) as ChordQuality[];
 
   const T = obs.length;
   const delta = new Float64Array(S);
@@ -118,12 +117,9 @@ export function viterbi(obs: FrameObs[], opts: ViterbiOptions = {}): { states: S
     if (o.energy < silence) {
       e.fill(-8); e[0] = 0;
     } else {
-      const scores = scoreChords(o.chroma, o.bass, qualities);
-      const lookup = new Map<string, number>();
-      for (const c of scores) lookup.set(`${c.root}:${c.quality}`, c.score);
       for (let i = 1; i < S; i++) {
         const st = states[i]!;
-        e[i] = beta * (lookup.get(`${st.root}:${st.quality}`) ?? 0) + priors[i]!;
+        e[i] = beta * scoreOne(st.root!, st.quality!, o.chroma, o.bass) + priors[i]!;
       }
       e[0] = beta * 0.2; // "no chord" baseline: only wins when nothing fits
     }
@@ -162,8 +158,7 @@ export function viterbi(obs: FrameObs[], opts: ViterbiOptions = {}): { states: S
   const confidence = path.map((si, t) => {
     const st = states[si]!;
     if (st.root === null) return obs[t]!.energy < silence ? 1 : 0.3;
-    const sc = scoreChords(obs[t]!.chroma, obs[t]!.bass, qualities).find((c) => c.root === st.root && c.quality === st.quality);
-    return Math.max(0, Math.min(1, sc?.score ?? 0));
+    return Math.max(0, Math.min(1, scoreOne(st.root, st.quality!, obs[t]!.chroma, obs[t]!.bass)));
   });
   return { states, path, confidence };
 }

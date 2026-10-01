@@ -76,3 +76,16 @@ export function chordFromBass(
   const ivs = QUALITY_INTERVALS[quality].map((iv) => mod12(root + iv));
   return ivs.includes(bassPc) ? bassPc : undefined;
 }
+
+/**
+ * Score of one specific chord against a frame, with the same formula as scoreChords.
+ * Used by the Viterbi decoder, which evaluates every state per frame and must not allocate.
+ */
+export function scoreOne(root: number, q: ChordQuality, chroma: number[], bass: number[] | undefined): number {
+  const t = tpl(root, q);
+  let dot = 0;
+  for (let i = 0; i < 12; i++) dot += t[i]! * chroma[i]!;
+  let score = dot - COMPLEXITY_PENALTY[q];
+  if (bass) score += 0.04 * (bass[root]! > 0.5 ? bass[root]! : 0);
+  return Math.max(0, score);
+}
