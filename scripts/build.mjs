@@ -27,6 +27,7 @@ const opts = {
   target: "firefox115",
   format: "iife",
   sourcemap: true,
+  minifySyntax: !test, // drops the dead test hooks from release builds
   define: { __WCC_TEST__: test ? "true" : "false" },
   logLevel: "info",
 };
