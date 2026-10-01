@@ -123,6 +123,7 @@ function render(): void {
     </section>
     <section class="meta">
       <span id="key"></span>
+      <span id="bpm" class="muted" title="Tempo (needs ~10 s of playing)"></span><span id="beatdots" class="dots"></span>
       <label>transpose <select id="transpose">${Array.from({ length: 25 }, (_, i) => i - 12)
         .map((n) => `<option value="${n}" ${n === (record?.transpose ?? 0) ? "selected" : ""}>${n > 0 ? "+" : ""}${n}</option>`).join("")}</select></label>
       <label>show <select id="mode">
@@ -201,6 +202,8 @@ function updateLive(): void {
   btn.textContent = s?.connected ? "Disconnect" : "Connect";
   set("state", s ? (s.error ? `${AUDIO_TEXT[s.audio]}: ${s.error}` : AUDIO_TEXT[s.audio]) + (s.known ? " · saved" : "") : "…");
   set("key", keyText(record, s));
+  set("bpm", record?.tempoBpm ? `♩ ${Math.round(record.tempoBpm)}` : s?.connected ? "♩ …" : "");
+  updateBeatDots(s?.time ?? 0);
   if (!s) return;
   const chords = record?.chords ?? [];
   const cur = s.liveChordIdx >= 0 ? chords[s.liveChordIdx] : undefined;
@@ -215,6 +218,21 @@ function updateLive(): void {
   set("loopinfo", s.loop ? `loop ${fmtTime(s.loop[0])}–${fmtTime(s.loop[1])}` : "");
   highlightChart(s.liveChordIdx);
   highlightLyric(s.time);
+}
+
+function updateBeatDots(t: number): void {
+  const el = document.getElementById("beatdots");
+  if (!el) return;
+  const beats = record?.beats, down = record?.downbeat;
+  const per = record?.beatsPerBar ?? 4;
+  if (!beats || down === undefined || status?.audio !== "running") { if (el.childElementCount) el.replaceChildren(); return; }
+  if (el.childElementCount !== per) {
+    el.replaceChildren(...Array.from({ length: per }, () => { const d = document.createElement("i"); return d; }));
+  }
+  let lo = 0, hi = beats.length - 1, idx = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (beats[m]! <= t) { idx = m; lo = m + 1; } else hi = m - 1; }
+  const pos = idx < 0 ? -1 : (((idx - down) % per) + per) % per;
+  Array.from(el.children).forEach((d, i) => d.classList.toggle("on", i === pos));
 }
 
 // ---- chart ----

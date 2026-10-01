@@ -50,3 +50,6 @@ details.song { margin: 8px 0; }
 details.song summary { cursor: pointer; color: var(--muted); }
 details.song input, details.song textarea { font: inherit; color: inherit; background: var(--card); border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; width: 100%; box-sizing: border-box; margin: 4px 0; }
 .ok { color: #1a8a3a; } .warn { color: var(--warn); }
+.dots { display: inline-flex; gap: 3px; align-items: center; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--card); border: 1px solid var(--muted); }
+.dots i.on { background: var(--accent); border-color: var(--accent); }

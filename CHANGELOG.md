@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 — 2026-10-02
+- Tempo (BPM) now shows after ~10 s of playing, with a beat indicator, instead of only after 30 s.
+- Chords are decoded beat by beat once the tempo is known, so the chord no longer flickers when a
+  melody or drums add non-chord notes. Live display additionally waits ~0.25 s before switching.
+- Without a tempo yet, very short chord blips are merged.
+- Faster, steadier live chord: lower lag on chord changes.
+
 ## 1.0.0 — 2026-10-01
 First release. Firefox desktop, local only.
 - Live key and chord detection from the playing YouTube video (Web Audio, nothing uploaded).

@@ -157,6 +157,22 @@ function tick(): void {
   if (now - lastSave > SAVE_MS) void persist();
 }
 
+// The live chord only changes once the decoder has disagreed with what is shown for ~0.25 s without
+// interruption, so a short blip never reaches the display. (Time based: status() is called from
+// several places. The disagreement may flip between similar chords, e.g. C / Cadd9; the newest wins.)
+const LIVE_HOLD_MS = 250;
+let liveShown: StatusMsg["live"] = null;
+let liveDiffSince = 0;
+const sameChord = (a: StatusMsg["live"], b: StatusMsg["live"]) => !!a && !!b && a.root === b.root && a.quality === b.quality && (a.bass ?? a.root) === (b.bass ?? b.root);
+function stableLive(raw: StatusMsg["live"]): StatusMsg["live"] {
+  const now = performance.now();
+  if (!raw) { liveShown = null; liveDiffSince = 0; return null; }
+  if (!liveShown || sameChord(raw, liveShown)) { liveShown = raw; liveDiffSince = 0; return raw; }
+  if (liveDiffSince === 0) liveDiffSince = now;
+  if (now - liveDiffSince >= LIVE_HOLD_MS) { liveShown = raw; liveDiffSince = 0; }
+  return liveShown;
+}
+
 function status(): StatusMsg {
   const v = video;
   const time = v?.currentTime ?? 0;
@@ -170,7 +186,7 @@ function status(): StatusMsg {
     level, chroma: lastChroma,
     time, duration: v && Number.isFinite(v.duration) ? v.duration : 0,
     rate: v?.playbackRate ?? 1,
-    live: connected && audioState === "running" && session ? session.liveChord(time) : null,
+    live: stableLive(connected && audioState === "running" && session ? session.liveChord(time) : null),
     liveChordIdx: idx, nextChordIdx: nextDifferent(chords, idx),
     key: session?.record.key.confidence ? session.record.key : null,
     loop, known,
