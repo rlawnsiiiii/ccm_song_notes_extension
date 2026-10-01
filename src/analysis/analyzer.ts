@@ -10,6 +10,13 @@ export interface AnalysisResult {
   chords: ChordEvent[];
 }
 
+/** Key from energy-weighted chroma only (no chord decoding). */
+export function estimateKey(frames: FeatureFrame[]): KeyInfo | null {
+  const acc = new KeyAccumulator();
+  for (const f of frames) acc.add(f.chroma, Math.min(1, f.energy * 20));
+  return acc.key();
+}
+
 /** Offline analysis of an ordered list of frames (also used by the live analyzer on a window). */
 export function analyzeFrames(frames: FeatureFrame[], keyHint?: KeyInfo | null): AnalysisResult {
   if (frames.length === 0) return { key: null, chords: [] };

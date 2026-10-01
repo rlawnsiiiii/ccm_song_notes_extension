@@ -12,5 +12,8 @@ Read `plan.md` before starting work. Current phase: see Status at the bottom of 
 
 ## Commands
 - `npm run build` → `dist/` · `npm test` · `npm run typecheck` · `npm run lint` (web-ext lint)
-- `npm run run` builds nothing; run `npm run build` first, then `web-ext run` opens Firefox with the extension.
+- `npm run e2e` runs the headless Firefox end-to-end test (needs `.cache/geckodriver`; never touch the user's own Firefox profile).
+- Run Firefox for the extension with `npm run build && npx web-ext run --source-dir dist`.
 - `npm run eval` scores stored analysis against `testdata/` (see `docs/eval-log.md`).
+
+All phases (0–8) are implemented; next work is scoring on real videos (see README “Status and honest limits”).

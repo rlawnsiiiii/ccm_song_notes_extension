@@ -30,6 +30,7 @@ let loop: [number, number] | null = null;
 let known = false;
 let lastSave = 0;
 let lastReanalyze = 0;
+let reanalyzeEvery = REANALYZE_MS; // grows with the measured cost so long songs never hog the page thread
 let lastFrameT = -1;
 let saveInFlight = false;
 
@@ -147,9 +148,10 @@ function tick(): void {
   session.addFrame(frame);
 
   const now = performance.now();
-  if (now - lastReanalyze > REANALYZE_MS && session.dirty) {
+  if (now - lastReanalyze > reanalyzeEvery && session.dirty) {
     session.reanalyze();
-    lastReanalyze = now;
+    lastReanalyze = performance.now();
+    reanalyzeEvery = Math.max(REANALYZE_MS, (lastReanalyze - now) * 30);
     toSidebar({ type: "song", record: session.record });
   }
   if (now - lastSave > SAVE_MS) void persist();

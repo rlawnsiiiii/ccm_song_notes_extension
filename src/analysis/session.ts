@@ -1,5 +1,5 @@
 import type { ChordEvent, FeatureFrame, KeyInfo, SongRecord } from "../shared/types";
-import { ANALYZER_VERSION, analyzeFrames } from "./analyzer";
+import { ANALYZER_VERSION, analyzeFrames, estimateKey } from "./analyzer";
 import { mergeChords } from "./merge";
 import { buildBars } from "./bars";
 import { cleanTitle } from "../music/title";
@@ -63,7 +63,7 @@ export class SongSession {
     if (this.frames.size === 0) return;
     const segs = this.segments().filter((s) => s.length >= 3);
     const all = this.sortedFrames();
-    const key = analyzeFrames(all).key;
+    const key = estimateKey(all);
     const locked = this.record.key.confidence >= 1; // set by the user
     const keyChanged = key && !locked && (key.tonic !== this.record.key.tonic || key.mode !== this.record.key.mode);
     let detected: ChordEvent[] = [];
