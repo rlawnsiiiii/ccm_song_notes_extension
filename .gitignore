@@ -3,3 +3,5 @@ dist
 web-ext-artifacts
 .DS_Store
 .tmp-*
+.cache
+e2e/fixtures

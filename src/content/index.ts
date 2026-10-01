@@ -10,6 +10,8 @@ import { AudioTap, TAP_FFT } from "./audio-tap";
 import { getTitle, getVideoElement, getVideoId, isAdPlaying, watchNavigation } from "./youtube";
 import { applyEdit } from "./edits";
 
+declare const __WCC_TEST__: boolean;
+
 const POLL_MS = 100;
 const SAVE_MS = 15000;
 const REANALYZE_MS = 4000;
@@ -186,6 +188,26 @@ browser.runtime.onMessage.addListener((raw: unknown) => {
 
 setInterval(tick, POLL_MS);
 setInterval(() => toSidebar(status()), 250);
+
+if (__WCC_TEST__) {
+  // Test hooks: auto-connect, publish state to the DOM, accept commands via a DOM attribute.
+  setInterval(() => {
+    const st = status();
+    document.documentElement.dataset.wcc = JSON.stringify({ st, record: session?.record ?? null, frames: session?.frames.size ?? 0 });
+    const cmd = document.documentElement.dataset.wccCmd;
+    if (cmd) {
+      delete document.documentElement.dataset.wccCmd;
+      const c = JSON.parse(cmd);
+      if (c.type === "connect") void connect();
+      else if (c.type === "persist") void persist(true);
+      else if (c.type === "reload") void loadSession();
+      else if (c.type === "edit" || c.type === "reanalyze") {
+        if (c.type === "reanalyze") session?.reanalyze();
+        else if (session && applyEdit(session.record, c.msg)) void bg({ type: "db:saveSong", record: session.record });
+      }
+    }
+  }, 300);
+}
 window.addEventListener("pagehide", () => { void persist(true); });
 document.addEventListener("visibilitychange", () => { if (document.hidden) void persist(); });
 

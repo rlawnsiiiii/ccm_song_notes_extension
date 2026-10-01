@@ -109,9 +109,11 @@ export class SongSession {
   liveChord(nowT: number, windowSec = 2.5): ChordEvent | null {
     const key = this.record.key.confidence ? this.record.key : null;
     const win: FeatureFrame[] = [];
+    let misses = 0;
     for (let b = bucket(nowT); b > bucket(nowT) - windowSec / HOP_SEC; b--) {
       const f = this.frames.get(b);
-      if (!f) { if (win.length) break; else continue; }
+      if (!f) { if (win.length && ++misses > 2) break; continue; } // tolerate timer jitter
+      misses = 0;
       win.unshift(f);
     }
     if (win.length < 3) return null;
