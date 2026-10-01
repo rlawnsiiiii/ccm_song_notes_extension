@@ -1,7 +1,10 @@
 import type { StatusMsg, ToContent } from "../shared/messages";
 import { isToSidebar } from "../shared/messages";
-import type { ChordEvent, SongRecord } from "../shared/types";
-import { chordName, chordNumber, prefersFlats, noteName, mod12, simplifyQuality } from "../music/theory";
+import type { ChordEvent, ChordQuality, PitchClass, SongRecord } from "../shared/types";
+import { buildBars } from "../analysis/bars";
+import { chordName, chordNumber, prefersFlats, noteName, mod12, simplifyQuality, QUALITY_SUFFIX } from "../music/theory";
+
+const QUALITIES: ChordQuality[] = ["maj", "min", "7", "maj7", "m7", "sus4", "sus2", "add9", "dim", "aug"];
 
 type DisplayMode = "names" | "numbers" | "both";
 const prefs = { mode: "names" as DisplayMode, simplify: false };
@@ -31,7 +34,12 @@ async function send(m: ToContent): Promise<StatusMsg | null> {
 browser.runtime.onMessage.addListener((m: unknown, sender) => {
   if (!isToSidebar(m) || sender.tab?.id !== tabId) return;
   if (m.type === "status") { status = m; updateLive(); }
-  else { record = m.record; render(); }
+  else {
+    const fresh = !record || !m.record || record.videoId !== m.record.videoId;
+    record = m.record;
+    if (fresh || !document.getElementById("chart")) render();
+    else { const t = document.getElementById("title"); if (t) t.textContent = record?.title ?? ""; updateLive(); renderChart(); }
+  }
 });
 browser.tabs.onActivated.addListener(() => void findTab());
 browser.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.status === "complete") void findTab(); });
@@ -149,20 +157,76 @@ function updateLive(): void {
   highlightChart(s.liveChordIdx);
 }
 
-// ---- chart (simple list of bars; sections come in Phase 4) ----
+// ---- chart ----
 let lastHighlight = -2;
+let selected: number | null = null;
+
+function chordButton(c: ChordEvent, i: number): string {
+  const cls = ["chord", c.source !== "detected" ? "edited" : "", c.confidence < 0.55 ? "weak" : "", i === selected ? "sel" : ""].join(" ");
+  return `<button class="${cls}" data-i="${i}" title="${fmtTime(c.startSec)}">${esc(display(c, record))}</button>`;
+}
+
 function renderChart(): void {
   const el = document.getElementById("chart");
   if (!el) return;
   const chords = record?.chords ?? [];
   if (chords.length === 0) { el.innerHTML = `<p class="muted">Play the video with the sidebar connected to build the chart.</p>`; return; }
-  el.innerHTML = `<div class="grid">${chords.map((c, i) =>
-    `<button class="chord ${c.source !== "detected" ? "edited" : ""} ${c.confidence < 0.55 ? "weak" : ""}" data-i="${i}" title="${fmtTime(c.startSec)}">${esc(display(c, record))}</button>`).join("")}</div>`;
+  let body: string;
+  if (record?.beats && record.downbeat !== undefined && record.tempoBpm) {
+    const bars = buildBars(chords, { bpm: record.tempoBpm, offset: record.beats[0] ?? 0, beats: record.beats, downbeat: record.downbeat, beatsPerBar: record.beatsPerBar ?? 4 }, record.durationSec);
+    body = `<div class="bars">${bars.map((b, n) =>
+      `<div class="bar" data-start="${b.startSec.toFixed(2)}" data-end="${b.endSec.toFixed(2)}"><span class="barno">${n + 1}</span>${b.chords.map((x) => chordButton(chords[x.eventIndex]!, x.eventIndex)).join("")}</div>`).join("")}</div>`;
+  } else {
+    body = `<div class="grid">${chords.map((c, i) => chordButton(c, i)).join("")}</div>`;
+  }
+  el.innerHTML = `${record?.tempoBpm ? `<div class="muted">${record.tempoBpm} BPM</div>` : ""}${body}<div id="editor"></div>`;
   el.querySelectorAll<HTMLButtonElement>(".chord").forEach((b) => {
-    b.onclick = () => { const c = chords[+b.dataset.i!]; if (c) void send({ type: "seek", sec: c.startSec }); };
+    b.onclick = () => {
+      const i = +b.dataset.i!;
+      selected = selected === i ? null : i;
+      const c = chords[i];
+      if (c && selected !== null) void send({ type: "seek", sec: c.startSec });
+      renderChart();
+    };
   });
+  renderEditor();
   lastHighlight = -2;
   highlightChart(status?.liveChordIdx ?? -1);
+}
+
+function renderEditor(): void {
+  const el = document.getElementById("editor");
+  const c = selected !== null ? record?.chords[selected] : undefined;
+  if (!el || !c || selected === null) { if (el) el.innerHTML = ""; return; }
+  const idx = selected;
+  const key = record!.key;
+  const flats = prefersFlats(mod12(key.tonic + record!.transpose), key.mode);
+  const note = (pc: number) => noteName(pc + record!.transpose, flats);
+  const roots = `<option value="-1" ${c.root === null ? "selected" : ""}>N.C.</option>` +
+    Array.from({ length: 12 }, (_, pc) => `<option value="${pc}" ${c.root === pc ? "selected" : ""}>${note(pc)}</option>`).join("");
+  const quals = QUALITIES.map((q) => `<option value="${q}" ${c.quality === q ? "selected" : ""}>${QUALITY_SUFFIX[q] || "maj"}</option>`).join("");
+  const basses = `<option value="-1">–</option>` +
+    Array.from({ length: 12 }, (_, pc) => `<option value="${pc}" ${c.bass === pc ? "selected" : ""}>${note(pc)}</option>`).join("");
+  el.innerHTML = `<div class="editor">
+    <div class="row"><b>${fmtTime(c.startSec)}–${fmtTime(c.endSec)}</b>
+      <select id="e-root">${roots}</select><select id="e-q">${quals}</select> / <select id="e-bass">${basses}</select></div>
+    <div class="row">
+      <button id="e-split">Split here</button><button id="e-merge">Merge next</button>
+      <button id="e-la">Loop from here</button><button id="e-lb">Loop to here end</button><button id="e-lc">Clear loop</button>
+    </div></div>`;
+  const apply = () => {
+    const root = +(document.getElementById("e-root") as HTMLSelectElement).value;
+    const q = (document.getElementById("e-q") as HTMLSelectElement).value as ChordQuality;
+    const bass = +(document.getElementById("e-bass") as HTMLSelectElement).value;
+    void send({ type: "editChord", index: idx, chord: root < 0 ? { root: null, quality: null } : { root: root as PitchClass, quality: q, ...(bass >= 0 ? { bass: bass as PitchClass } : {}) } });
+  };
+  for (const id of ["e-root", "e-q", "e-bass"]) document.getElementById(id)!.onchange = apply;
+  document.getElementById("e-split")!.onclick = () => void send({ type: "splitChord", index: idx, atSec: status?.time ?? c.startSec });
+  document.getElementById("e-merge")!.onclick = () => void send({ type: "mergeChordWithNext", index: idx });
+  let loopA = c.startSec;
+  document.getElementById("e-la")!.onclick = () => { loopA = c.startSec; void send({ type: "setLoop", range: [loopA, Math.max(c.endSec, loopA + 1)] }); };
+  document.getElementById("e-lb")!.onclick = () => void send({ type: "setLoop", range: [status?.loop?.[0] ?? loopA, c.endSec] });
+  document.getElementById("e-lc")!.onclick = () => void send({ type: "setLoop", range: null });
 }
 
 function highlightChart(idx: number): void {

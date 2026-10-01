@@ -40,7 +40,9 @@ export interface SongRecord {
   key: KeyInfo;
   keyChanges: { atSec: number; tonic: PitchClass; mode: Mode }[];
   tempoBpm?: number;
-  beats?: number[];
+  beats?: number[]; // seconds
+  downbeat?: number; // index into beats of the first bar start (mod beatsPerBar)
+  beatsPerBar?: number;
   chords: ChordEvent[];
   sections: Section[];
   lyrics?: { startSec: number; endSec: number; text: string }[];

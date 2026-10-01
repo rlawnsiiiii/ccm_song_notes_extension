@@ -1,6 +1,7 @@
 import type { ChordEvent, FeatureFrame, KeyInfo, SongRecord } from "../shared/types";
 import { ANALYZER_VERSION, analyzeFrames } from "./analyzer";
 import { mergeChords } from "./merge";
+import { estimateBeatGrid, onsetEnvelope, snapChords } from "./beats";
 
 export const HOP_SEC = 0.1;
 const bucket = (t: number) => Math.round(t / HOP_SEC);
@@ -10,6 +11,7 @@ export class SongSession {
   readonly frames = new Map<number, FeatureFrame>();
   record: SongRecord;
   dirty = false;
+  private gridHeard = 0;
 
   constructor(record: SongRecord) {
     this.record = record;
@@ -68,6 +70,19 @@ export class SongSession {
     }
     if (key && (keyChanged || this.record.key.confidence === 0)) this.record.key = key;
     else if (key && !locked) this.record.key.confidence = key.confidence;
+    const dur = this.record.durationSec || all[all.length - 1]!.t + 1;
+    const heard = ranges.reduce((s, r) => s + r[1] - r[0], 0);
+    if (heard >= 30 && (!this.record.beats || heard - this.gridHeard > 15)) {
+      const grid = estimateBeatGrid(onsetEnvelope(all), dur);
+      this.gridHeard = heard;
+      if (grid) {
+        this.record.tempoBpm = Math.round(grid.bpm * 10) / 10;
+        this.record.beats = grid.beats.map((b) => Math.round(b * 1000) / 1000);
+        this.record.downbeat = grid.downbeat;
+        this.record.beatsPerBar = grid.beatsPerBar;
+      }
+    }
+    if (this.record.beats) detected = snapChords(detected, this.record.beats);
     this.record.chords = mergeChords(this.record.chords, detected);
     this.record.analyzedRanges = ranges;
     this.record.analyzerVersion = ANALYZER_VERSION;
