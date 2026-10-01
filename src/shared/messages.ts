@@ -39,6 +39,8 @@ export type ToContent =
   | { type: "setTranspose"; semitones: number }
   | { type: "setTitle"; title: string; artist?: string }
   | { type: "setKey"; tonic: number; mode: "major" | "minor" }
+  | { type: "fetchLyrics" }
+  | { type: "setLyricNudge"; key: string; chars: number }
   | { type: "reanalyze" }
   | { type: "resetAnalysis" }
   | { type: "importRecord"; record: SongRecord };

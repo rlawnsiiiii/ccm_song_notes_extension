@@ -2,12 +2,13 @@ import type { StatusMsg, ToContent } from "../shared/messages";
 import { isToSidebar } from "../shared/messages";
 import type { ChordEvent, ChordQuality, PitchClass, SongRecord } from "../shared/types";
 import { buildBars } from "../analysis/bars";
+import { placeChords } from "../music/lyrics";
 import { chordName, chordNumber, prefersFlats, noteName, mod12, simplifyQuality, QUALITY_SUFFIX } from "../music/theory";
 
 const QUALITIES: ChordQuality[] = ["maj", "min", "7", "maj7", "m7", "sus4", "sus2", "add9", "dim", "aug"];
 
 type DisplayMode = "names" | "numbers" | "both";
-const prefs = { mode: "names" as DisplayMode, simplify: false };
+const prefs = { mode: "names" as DisplayMode, simplify: false, view: "chart" as "chart" | "lyrics" };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem("wcc-prefs") ?? "{}")); } catch { /* ignore */ }
 const savePrefs = () => { try { localStorage.setItem("wcc-prefs", JSON.stringify(prefs)); } catch { /* ignore */ } };
 
@@ -17,10 +18,23 @@ let record: SongRecord | null = null;
 
 const $app = document.getElementById("app")!;
 
+declare const __WCC_TEST__: boolean;
+
+/**
+ * Extension pages embedded in a web page (only the automated test does this) get no tabs API,
+ * so test builds route the three tabs calls we use through the background script.
+ */
+const tabsApi: Pick<typeof browser.tabs, "query" | "sendMessage"> = (typeof browser.tabs !== "undefined" ? browser.tabs : null) ?? {
+  query: (q: any) => browser.runtime.sendMessage({ type: "test:tabs.query", q }),
+  sendMessage: (id: number, m: any) => browser.runtime.sendMessage({ type: "test:tabs.send", id, m }),
+} as any;
+
 async function findTab(): Promise<void> {
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+  // Test builds can open the sidebar as a normal tab and point it at another tab: ?tab=<url fragment>
+  const want = __WCC_TEST__ ? new URLSearchParams(location.search).get("tab") : null;
+  const tabs = want ? (await tabsApi.query({})).filter((x) => x.url?.includes(want)) : await tabsApi.query({ active: true, currentWindow: true });
   const t = tabs[0];
-  tabId = t?.id !== undefined && t.url && /^https?:\/\/www\.youtube\.com\//.test(t.url) ? t.id : null;
+  tabId = t?.id !== undefined && t.url && (/^https?:\/\/www\.youtube\.com\//.test(t.url) || (__WCC_TEST__ && !!want)) ? t.id : null;
   status = null; record = null;
   if (tabId !== null) { const s = await send({ type: "hello" }); if (s) status = s; }
   render();
@@ -28,11 +42,11 @@ async function findTab(): Promise<void> {
 
 async function send(m: ToContent): Promise<StatusMsg | null> {
   if (tabId === null) return null;
-  try { return (await browser.tabs.sendMessage(tabId, m)) as StatusMsg; } catch { return null; }
+  try { return (await tabsApi.sendMessage(tabId, m)) as StatusMsg; } catch { return null; }
 }
 
-browser.runtime.onMessage.addListener((m: unknown, sender) => {
-  if (!isToSidebar(m) || sender.tab?.id !== tabId) return;
+function onBroadcast(m: unknown, senderTabId: number | undefined): void {
+  if (!isToSidebar(m) || senderTabId !== tabId) return;
   if (m.type === "status") { status = m; updateLive(); }
   else {
     const fresh = !record || !m.record || record.videoId !== m.record.videoId;
@@ -40,9 +54,24 @@ browser.runtime.onMessage.addListener((m: unknown, sender) => {
     if (fresh || !document.getElementById("chart")) render();
     else { const t = document.getElementById("title"); if (t) t.textContent = record?.title ?? ""; updateLive(); renderChart(); }
   }
-});
-browser.tabs.onActivated.addListener(() => void findTab());
-browser.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.status === "complete") void findTab(); });
+}
+browser.runtime.onMessage.addListener((m: unknown, sender) => { onBroadcast(m, sender.tab?.id); });
+
+if (__WCC_TEST__ && typeof browser.tabs === "undefined") {
+  // embedded test frames do not receive runtime broadcasts; poll what the background has seen
+  let songVersion = -1;
+  setInterval(async () => {
+    if (tabId === null) return;
+    const r = (await browser.runtime.sendMessage({ type: "test:poll", tabId })) as { status?: unknown; song?: unknown; version: number } | undefined;
+    if (!r) return;
+    if (r.status) onBroadcast(r.status, tabId);
+    if (r.song && r.version !== songVersion) { songVersion = r.version; onBroadcast(r.song, tabId); }
+  }, 250);
+}
+if (typeof browser.tabs !== "undefined") {
+  browser.tabs.onActivated.addListener(() => void findTab());
+  browser.tabs.onUpdated.addListener((id, info) => { if (id === tabId && info.status === "complete") void findTab(); });
+}
 
 // ---- formatting ----
 function display(c: ChordEvent | StatusMsg["live"], r: SongRecord | null): string {
@@ -103,6 +132,7 @@ function render(): void {
       <label>speed <select id="rate">${[0.5, 0.75, 0.9, 1, 1.25].map((r) => `<option value="${r}">${r}×</option>`).join("")}</select></label>
       <span id="loopinfo" class="muted"></span>
     </section>
+    <section class="tabs"><button id="tab-chart" class="${prefs.view === 'chart' ? 'on' : ''}">Chart</button><button id="tab-lyrics" class="${prefs.view === 'lyrics' ? 'on' : ''}">Lyrics</button></section>
     <section id="chart"></section>
     <section class="foot">
       <button id="reanalyze">Re-analyze</button>
@@ -123,6 +153,8 @@ function bind(): void {
   ($("simplify") as HTMLInputElement).onchange = (e) => { prefs.simplify = (e.target as HTMLInputElement).checked; savePrefs(); updateLive(); renderChart(); };
   ($("rate") as HTMLSelectElement).value = String(status?.rate ?? 1);
   ($("rate") as HTMLSelectElement).onchange = (e) => void send({ type: "setRate", rate: +(e.target as HTMLSelectElement).value });
+  $("tab-chart").onclick = () => { prefs.view = "chart"; savePrefs(); render(); };
+  $("tab-lyrics").onclick = () => { prefs.view = "lyrics"; savePrefs(); render(); };
   $("reanalyze").onclick = () => void send({ type: "reanalyze" });
   $("export").onclick = () => void exportBackup();
   $("import").onclick = () => $("file").click();
@@ -155,6 +187,7 @@ function updateLive(): void {
   });
   set("loopinfo", s.loop ? `loop ${fmtTime(s.loop[0])}–${fmtTime(s.loop[1])}` : "");
   highlightChart(s.liveChordIdx);
+  highlightLyric(s.time);
 }
 
 // ---- chart ----
@@ -166,9 +199,63 @@ function chordButton(c: ChordEvent, i: number): string {
   return `<button class="${cls}" data-i="${i}" title="${fmtTime(c.startSec)}">${esc(display(c, record))}</button>`;
 }
 
+function renderLyrics(el: HTMLElement): void {
+  const lines = record?.lyrics ?? [];
+  const chords = record?.chords ?? [];
+  if (lines.length === 0) {
+    el.innerHTML = `<p class="muted">No Korean captions found for this video.</p><button id="refetch">Look again</button>`;
+    document.getElementById("refetch")!.onclick = () => void send({ type: "fetchLyrics" });
+    return;
+  }
+  const nudge: Record<number, number> = {};
+  chords.forEach((c, i) => { const n = record?.lyricNudge?.[c.startSec.toFixed(1)]; if (n) nudge[i] = n; });
+  const note = record?.lyricsAuto ? `<p class="muted">Auto-generated captions: lines may be inaccurate. Chord positions inside a line are approximate – click a chord, then ◀ ▶ to nudge.</p>` : `<p class="muted">Chord positions inside a line are approximate – click a chord, then ◀ ▶ to nudge.</p>`;
+  const rows = lines.map((l, li) => {
+    const placed = placeChords(l, chords, nudge, (i) => Math.ceil([...display(chords[i]!, record)].length * 0.7));
+    const chars = [...l.text];
+    const at = new Map(placed.map((p) => [p.col, p.eventIndex]));
+    let html = "";
+    for (let c = 0; c <= chars.length; c++) {
+      const ei = at.get(c);
+      const chord = ei !== undefined ? `<button class="lc ${ei === selected ? "sel" : ""}" data-i="${ei}">${esc(display(chords[ei]!, record))}</button>` : "";
+      if (c === chars.length) { if (chord) html += `<span class="cw">${chord}&nbsp;</span>`; }
+      else html += `<span class="cw">${chord}${esc(chars[c]!)}</span>`;
+    }
+    return `<div class="lyr" data-li="${li}" data-start="${l.startSec}"><div class="ltext">${html}</div></div>`;
+  }).join("");
+  const selChord = selected !== null ? chords[selected] : undefined;
+  el.innerHTML = `${note}<div class="lyrics">${rows}</div>${selChord ? `<div class="editor"><div class="row"><b>${esc(display(selChord, record))}</b>
+    <button id="ln-l">◀</button><button id="ln-r">▶</button><button id="ln-0">reset</button></div></div>` : ""}`;
+  el.querySelectorAll<HTMLElement>(".lyr").forEach((d) => { d.onclick = (e) => { if (!(e.target as HTMLElement).closest(".lc")) void send({ type: "seek", sec: +d.dataset.start! }); }; });
+  el.querySelectorAll<HTMLButtonElement>(".lc").forEach((b) => { b.onclick = () => { const i = +b.dataset.i!; selected = selected === i ? null : i; renderChart(); }; });
+  if (selChord) {
+    const key = selChord.startSec.toFixed(1);
+    const cur = record?.lyricNudge?.[key] ?? 0;
+    document.getElementById("ln-l")!.onclick = () => void send({ type: "setLyricNudge", key, chars: cur - 1 });
+    document.getElementById("ln-r")!.onclick = () => void send({ type: "setLyricNudge", key, chars: cur + 1 });
+    document.getElementById("ln-0")!.onclick = () => void send({ type: "setLyricNudge", key, chars: 0 });
+  }
+  lastLyric = -2;
+  highlightLyric(status?.time ?? 0);
+}
+
+let lastLyric = -2;
+function highlightLyric(t: number): void {
+  const lines = record?.lyrics;
+  if (!lines || prefs.view !== "lyrics") return;
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) if (lines[i]!.startSec <= t) idx = i; else break;
+  if (idx === lastLyric) return;
+  lastLyric = idx;
+  document.querySelectorAll(".lyr.on").forEach((e) => e.classList.remove("on"));
+  const el = document.querySelector<HTMLElement>(`.lyr[data-li="${idx}"]`);
+  if (el) { el.classList.add("on"); el.scrollIntoView({ block: "center" }); }
+}
+
 function renderChart(): void {
   const el = document.getElementById("chart");
   if (!el) return;
+  if (prefs.view === "lyrics") { renderLyrics(el); return; }
   const chords = record?.chords ?? [];
   if (chords.length === 0) { el.innerHTML = `<p class="muted">Play the video with the sidebar connected to build the chart.</p>`; return; }
   let body: string;
@@ -306,4 +393,4 @@ async function importBackup(file: File | undefined): Promise<void> {
   } catch (e) { alert(`Import failed: ${e instanceof Error ? e.message : e}`); }
 }
 
-void findTab();
+void findTab().catch((e) => { (window as any).__err = String(e); $app.textContent = `Could not start: ${e instanceof Error ? e.message : e}`; });

@@ -36,3 +36,13 @@ button.primary { background: var(--accent); color: #fff; }
 .seclabel { font: inherit; font-weight: 600; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 4px; padding: 1px 4px; width: 8em; }
 .seclabel:hover, .seclabel:focus { border-color: var(--muted); }
 .sechead button { padding: 0 6px; }
+.tabs { display: flex; gap: 4px; margin: 6px 0; }
+.tabs button.on { background: var(--accent); color: #fff; }
+.lyrics { max-height: 50vh; overflow: auto; }
+.lyr { padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+.lyr.on { background: var(--card); }
+.ltext { font-size: 14px; white-space: pre-wrap; line-height: 2.6; padding-top: 2px; }
+.cw { position: relative; display: inline-block; }
+.cw .lc { position: absolute; top: -1.5em; left: 0; white-space: nowrap; }
+button.lc { font: inherit; font-weight: 700; padding: 0 2px; background: transparent; color: var(--accent); border-radius: 3px; }
+button.lc.sel { box-shadow: 0 0 0 2px var(--warn); }

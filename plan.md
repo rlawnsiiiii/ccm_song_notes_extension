@@ -342,7 +342,7 @@ Not legal advice. Check these before publishing anything.
 - [~] Phase 3 — Analyze once, play along (beats, bar chart, editor, loop done; needs Firefox check)
 - [~] Phase 4 — Song structure (sections, labels, key changes, editing done; needs real-song tuning)
 - [~] Phase 5 — Korean CCM tuning (vocabulary, key and progression priors, numbers, transpose, simplify done; needs real-song scoring)
-- [ ] Phase 6 — Korean lyrics view
+- [x] Phase 6 — Korean lyrics view (verified in Firefox e2e with fake captions; real subtitle tracks still to try)
 - [ ] Phase 7 — Reference lookup and chart import
 - [ ] Phase 8 — 콘티 builder and export
 

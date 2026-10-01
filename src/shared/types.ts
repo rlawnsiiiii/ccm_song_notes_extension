@@ -46,6 +46,9 @@ export interface SongRecord {
   chords: ChordEvent[];
   sections: Section[];
   lyrics?: { startSec: number; endSec: number; text: string }[];
+  lyricsAuto?: boolean; // true when the captions were auto-generated
+  /** chord start time (1 decimal) → characters to shift in the lyrics view */
+  lyricNudge?: Record<string, number>;
   transpose: number;
   notes?: string;
   updatedAt: string;

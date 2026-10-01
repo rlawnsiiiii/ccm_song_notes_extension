@@ -9,6 +9,7 @@ import type { SongRecord } from "../shared/types";
 import { AudioTap, TAP_FFT } from "./audio-tap";
 import { getTitle, getVideoElement, getVideoId, isAdPlaying, watchNavigation } from "./youtube";
 import { applyEdit } from "./edits";
+import { fetchKoreanCaptions } from "./captions";
 
 declare const __WCC_TEST__: boolean;
 
@@ -51,6 +52,30 @@ async function loadSession(): Promise<void> {
   }
   session.record.durationSec ||= duration;
   toSidebar({ type: "song", record: session.record });
+  if (!session.record.lyrics) void loadLyrics(id);
+}
+
+/** The player may not have its caption list yet right after navigation, so retry a few times. */
+async function loadLyrics(id: string, attempts = 6): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    if (getVideoId() !== id || !session) return;
+    try {
+      const res = await fetchKoreanCaptions(id);
+      if (res && session && getVideoId() === id) {
+        session.record.lyrics = res.lines;
+        session.record.lyricsAuto = res.auto;
+        session.record.updatedAt = new Date().toISOString();
+        toSidebar({ type: "song", record: session.record });
+        if (session.frames.size > 0) { session.reanalyze(); void persist(true); }
+        else void bg({ type: "db:saveSong", record: session.record });
+        return;
+      }
+    } catch (e) {
+      console.debug("[wcc] captions failed", e);
+      if (__WCC_TEST__) document.documentElement.dataset.wccLyricsErr = String(e);
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
 }
 
 async function connect(): Promise<void> {
@@ -162,6 +187,7 @@ browser.runtime.onMessage.addListener((raw: unknown) => {
     case "seek": if (video) video.currentTime = m.sec; break;
     case "setRate": if (video) video.playbackRate = Math.max(0.25, Math.min(2, m.rate)); break;
     case "setLoop": loop = m.range; break;
+    case "fetchLyrics": { const id = getVideoId(); if (id && session) { delete session.record.lyrics; void loadLyrics(id, 2); } break; }
     case "reanalyze": if (session) { session.reanalyze(); void persist(true); } break;
     case "resetAnalysis":
       if (session) {
