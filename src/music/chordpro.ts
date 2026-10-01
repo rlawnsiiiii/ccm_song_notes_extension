@@ -19,6 +19,8 @@ import type { Mode, PitchClass } from "../shared/types";
 export interface RefSection { label: string; chords: ChordSym[] }
 export interface RefChart {
   title?: string; videoId?: string; artist?: string;
+  /** play order of section labels, e.g. 전주 1절 후렴 2절 후렴 */
+  order?: string[];
   key?: { tonic: PitchClass; mode: Mode };
   sections: RefSection[];
 }
@@ -45,6 +47,7 @@ export function parseChordPro(text: string): RefChart {
         case "title": case "t": chart.title = val; break;
         case "artist": chart.artist = val; break;
         case "video": case "videoid": chart.videoId = val; break;
+        case "order": chart.order = val.split(/[\s,>→]+/).filter(Boolean); break;
         case "key": { const k = parseKey(val); if (k) chart.key = k; break; }
         case "section": case "comment": case "c": case "start_of_verse": case "start_of_chorus":
           chart.sections.push({ label: val || name, chords: [] }); cur = chart.sections[chart.sections.length - 1]!; break;
@@ -95,4 +98,15 @@ export function toChordPro(rec: SongRecord, opts: { transpose?: number; numbers?
     emit(rec.chords.filter((c) => c.startSec >= s.startSec - 0.01 && c.startSec < s.endSec - 0.01));
   }
   return lines.join("\n") + "\n";
+}
+
+/** Sections in play order. Without an {order:} line the chart is taken as written. */
+export function expandChart(chart: RefChart): RefSection[] {
+  if (!chart.order?.length) return chart.sections;
+  const out: RefSection[] = [];
+  for (const label of chart.order) {
+    const sec = chart.sections.find((s) => s.label === label);
+    if (sec) out.push(sec);
+  }
+  return out.length ? out : chart.sections;
 }

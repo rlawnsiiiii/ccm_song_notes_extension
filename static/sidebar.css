@@ -46,3 +46,7 @@ button.primary { background: var(--accent); color: #fff; }
 .cw .lc { position: absolute; top: -1.5em; left: 0; white-space: nowrap; }
 button.lc { font: inherit; font-weight: 700; padding: 0 2px; background: transparent; color: var(--accent); border-radius: 3px; }
 button.lc.sel { box-shadow: 0 0 0 2px var(--warn); }
+details.song { margin: 8px 0; }
+details.song summary { cursor: pointer; color: var(--muted); }
+details.song input, details.song textarea { font: inherit; color: inherit; background: var(--card); border: 1px solid transparent; border-radius: 6px; padding: 4px 6px; width: 100%; box-sizing: border-box; margin: 4px 0; }
+.ok { color: #1a8a3a; } .warn { color: var(--warn); }

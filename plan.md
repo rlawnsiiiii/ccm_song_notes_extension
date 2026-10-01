@@ -343,7 +343,7 @@ Not legal advice. Check these before publishing anything.
 - [~] Phase 4 — Song structure (sections, labels, key changes, editing done; needs real-song tuning)
 - [~] Phase 5 — Korean CCM tuning (vocabulary, key and progression priors, numbers, transpose, simplify done; needs real-song scoring)
 - [x] Phase 6 — Korean lyrics view (verified in Firefox e2e with fake captions; real subtitle tracks still to try)
-- [ ] Phase 7 — Reference lookup and chart import
+- [x] Phase 7 — Reference lookup and chart import (title cleanup, search links, ChordPro paste, alignment; e2e verified)
 - [ ] Phase 8 — 콘티 builder and export
 
 | 2026-10-01 | Own chroma/key/chord code instead of Meyda/Essentia.js | No licence issue (Essentia is AGPL), runs identically in Node for evaluation, small |

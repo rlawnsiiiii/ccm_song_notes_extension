@@ -2,6 +2,7 @@ import type { ChordEvent, FeatureFrame, KeyInfo, SongRecord } from "../shared/ty
 import { ANALYZER_VERSION, analyzeFrames } from "./analyzer";
 import { mergeChords } from "./merge";
 import { buildBars } from "./bars";
+import { cleanTitle } from "../music/title";
 import { barInfos, detectKeyChanges, findStructure, mergeSections } from "./structure";
 import { estimateBeatGrid, onsetEnvelope, snapChords } from "./beats";
 
@@ -20,8 +21,9 @@ export class SongSession {
   }
 
   static blank(videoId: string, rawTitle: string, durationSec: number): SongRecord {
+    const clean = cleanTitle(rawTitle);
     return {
-      videoId, rawTitle, title: rawTitle, durationSec,
+      videoId, rawTitle, title: clean.title, ...(clean.artist ? { artist: clean.artist } : {}), durationSec,
       analyzerVersion: ANALYZER_VERSION,
       analyzedRanges: [],
       key: { tonic: 0, mode: "major", confidence: 0 },
