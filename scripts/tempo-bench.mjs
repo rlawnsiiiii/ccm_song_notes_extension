@@ -23,7 +23,8 @@ function onsets(pcm, secs) {
   for (let s = 0; s + m.ONSET_WIN <= Math.min(secs * m.SR, pcm.length); s += hopS) out.push(ex.push(pcm.subarray(s, s + m.ONSET_WIN)));
   return m.normalizeOnsets(Float32Array.from(out));
 }
-const verdict = (est, truth) => {
+const verdict = (est, truth, compound) => {
+  if (compound && Math.abs(est / truth - 3) < 0.08) return "x3(8ths)";
   const r = est / truth;
   if (Math.abs(r - 1) < 0.03) return "ok";
   if (Math.abs(r - 2) < 0.06) return "x2";
@@ -34,17 +35,17 @@ const verdict = (est, truth) => {
   if (Math.abs(r - 0.75) < 0.03) return "x3/4";
   return "bad";
 };
-const tempos = quick ? [70, 100, 130] : [60, 66, 72, 80, 88, 96, 104, 112, 120, 130, 140, 150];
-const styles = ["rock", "acoustic", "ballad", "pad-only"];
+const tempos = process.argv.includes("--ccm") && !quick ? [50, 60, 66, 72, 80, 88, 96, 104, 112, 120, 130, 140] : quick ? [70, 100, 130] : [60, 66, 72, 80, 88, 96, 104, 112, 120, 130, 140, 150];
+const styles = process.argv.includes("--ccm") ? ["ccm", "ccm68"] : ["rock", "acoustic", "ballad", "pad-only"];
 const results = [];
 for (const style of styles) for (const bpm of tempos) for (const seed of quick ? [1] : [1, 2]) {
-  const { pcm } = m.makeSong({ bpm, style, seed, key: [7, 2, 9, 4, 0, 5][seed % 6], swing: seed === 2 ? 0.15 : 0 });
+  const { pcm } = m.makeSong({ bpm, style, seed, beatsPerBar: style === "ccm68" ? 6 : 4, key: [7, 2, 9, 4, 0, 5][seed % 6], swing: seed === 2 ? 0.15 : 0 });
   for (const secs of [12, 40]) {
     const useNew = !process.argv.includes("--old");
     let est = null;
     if (useNew) { const t = m.estimateTempo(onsets(pcm, secs)); est = t ? t.bpm : null; }
     else { const g = m.estimateBeatGrid(m.onsetEnvelope(frames(pcm, secs)), secs); est = g ? g.bpm : null; }
-    results.push({ style, bpm, seed, secs, est: est ? +est.toFixed(1) : null, v: est ? verdict(est, bpm) : "none" });
+    results.push({ style, bpm, seed, secs, est: est ? +est.toFixed(1) : null, v: est ? verdict(est, bpm, style === "ccm68") : "none" });
   }
 }
 const summary = {};
